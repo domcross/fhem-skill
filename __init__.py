@@ -27,7 +27,7 @@ class FhemSkill(FallbackSkill):
             try:
                 portnumber = int(portnumber)
             except TypeError:
-                portnumber = 8123
+                portnumber = 8083
             except ValueError:
                 # String might be some rubbish (like '')
                 portnumber = 0
@@ -117,14 +117,13 @@ class FhemSkill(FallbackSkill):
         LOGGER.debug("Starting Switch Intent")
         entity = message.data["Entity"]
         action = message.data["Action"]
+        allowed_types = ['light', 'switch', 'outlet']
         LOGGER.debug("Entity: %s" % entity)
         LOGGER.debug("Action: %s" % action)
         # TODO if entity is 'all', 'any' or 'every' turn on
         # every single entity not the whole group
         try:
-            fhem_entity = self.fhem.find_entity(
-                entity, ['group', 'light', 'fan', 'switch', 'scene',
-                         'input_boolean'])
+            fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -139,28 +138,26 @@ class FhemSkill(FallbackSkill):
         # self.set_context('Entity', fhem_entity['dev_name'])
 
         if self.language == 'de':
-            if action == 'ein':
+            if ((action == 'ein') or (action == 'an')) :
                 action = 'on'
             elif action == 'aus':
                 action = 'off'
-        if fhem_entity['state'] == action:
+        if fhem_entity['state']['Value'] == action:
             LOGGER.debug("Entity in requested state")
             self.speak_dialog('fhem.device.already', data={
                 "dev_name": fhem_entity['dev_name'], 'action': action})
         elif action == "toggle":
-            self.fhem.execute_service("fhem", "toggle",
-                                    fhem_data)
-            if(fhem_entity['state'] == 'off'):
+            if(fhem_entity['state']['Value'] == 'off'):
                 action = 'on'
             else:
                 action = 'off'
+            self.fhem.execute_service("set", fhem_entity['id'], action)
             self.speak_dialog('fhem.device.%s' % action,
                               data=fhem_entity)
         elif action in ["on", "off"]:
             self.speak_dialog('fhem.device.%s' % action,
                               data=fhem_entity)
-            self.fhem.execute_service("fhem", "turn_%s" % action,
-                                    fhem_data)
+            self.fhem.execute_service("set", fhem_entity['id'], action)
         else:
             self.speak_dialog('fhem.error.sorry')
             return
@@ -171,6 +168,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
+        allowed_types = ['light'] #TODO
         try:
             brightness_req = float(message.data["BrightnessValue"])
             if brightness_req > 100 or brightness_req < 0:
@@ -183,8 +181,7 @@ class FhemSkill(FallbackSkill):
         LOGGER.debug("Brightness Value: %s" % brightness_value)
         LOGGER.debug("Brightness Percent: %s" % brightness_percentage)
         try:
-            fhem_entity = self.fhem.find_entity(
-                entity, ['group', 'light'])
+            fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -213,7 +210,9 @@ class FhemSkill(FallbackSkill):
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return
+        allowed_types = ['light']
         entity = message.data["Entity"]
+
         try:
             brightness_req = float(message.data["BrightnessValue"])
             if brightness_req > 100 or brightness_req < 0:
@@ -225,8 +224,7 @@ class FhemSkill(FallbackSkill):
         LOGGER.debug("Entity: %s" % entity)
         LOGGER.debug("Brightness Value: %s" % brightness_value)
         try:
-            fhem_entity = self.fhem.find_entity(
-                entity, ['group', 'light'])
+            fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -300,11 +298,11 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
+        allowed_types = ['automation', 'scene', 'script'] #TODO
         LOGGER.debug("Entity: %s" % entity)
         # also handle scene and script requests
         try:
-            fhem_entity = self.fhem.find_entity(
-                entity, ['automation', 'scene', 'script'])
+            fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -339,9 +337,10 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
+        allowed_types = ['sensor'] #TODO
         LOGGER.debug("Entity: %s" % entity)
         try:
-            fhem_entity = self.fhem.find_entity(entity, ['sensor'])
+            fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -401,9 +400,10 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
+        allowed_types = ['device_tracker'] #TODO
         LOGGER.debug("Entity: %s" % entity)
         try:
-            fhem_entity = self.fhem.find_entity(entity, ['device_tracker'])
+            fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -429,7 +429,7 @@ class FhemSkill(FallbackSkill):
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return False
-        # pass message to HA-server
+        # pass message to FHEM-server
         try:
             response = self.fhem.engage_conversation(
                 message.data.get('utterance'))
