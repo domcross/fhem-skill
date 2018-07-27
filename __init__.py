@@ -138,11 +138,13 @@ class FhemSkill(FallbackSkill):
         # IDEA: set context for 'turn it off' again or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
 
-        if self.language == 'de':
+        if self.language == 'de' or self.language == 'de-de':
             if ((action == 'ein') or (action == 'an')) :
                 action = 'on'
             elif action == 'aus':
                 action = 'off'
+        LOGGER.debug("- action: %s" % action)
+        LOGGER.debug("- state: %s" % fhem_entity['state']['Value'])
         if fhem_entity['state']['Value'] == action:
             LOGGER.debug("Entity in requested state")
             self.speak_dialog('fhem.device.already', data={
@@ -152,12 +154,12 @@ class FhemSkill(FallbackSkill):
                 action = 'on'
             else:
                 action = 'off'
+            LOGGER.debug("toggled action: %s" % action)
             self.fhem.execute_service("set", fhem_entity['id'], action)
-            self.speak_dialog('fhem.device.%s' % action,
-                              data=fhem_entity)
+            self.speak_dialog('fhem.device.%s' % action, data=fhem_entity)
         elif action in ["on", "off"]:
-            self.speak_dialog('fhem.device.%s' % action,
-                              data=fhem_entity)
+            LOGGER.debug("action: on/off")
+            self.speak_dialog('fhem.device.%s' % action, data=fhem_entity)
             self.fhem.execute_service("set", fhem_entity['id'], action)
         else:
             self.speak_dialog('fhem.error.sorry')
