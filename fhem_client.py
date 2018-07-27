@@ -206,9 +206,7 @@ class FhemClient(object):
 
         BASE_URL = "%s?" % self.url
         command = "cmd={}%20{}%20{}".format(cmd,device,value)
-        #command = "cmd=jsonlist2%20room=Homebridge&XHR=1"
-        #csrf = requests.get(BASE_URL + "XHR=1").headers['X-FHEM-csrfToken']
-        cmd_req = BASE_URL + command + "&fwcsrf=" + self.url
+        cmd_req = BASE_URL + command + "&fwcsrf=" + self.csrf
         print("cmd_req = %s" % cmd_req)
 
         req = get(cmd_req)
