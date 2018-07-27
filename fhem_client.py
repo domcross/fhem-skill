@@ -55,7 +55,6 @@ class FhemClient(object):
         s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
         return s2.replace("_"," ").replace("-"," ").replace(".", " ")
 
-
     def find_entity(self, entity, types):
         json_data = self._get_state()
         #print("json_data = %s" % json_data)
