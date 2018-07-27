@@ -14,11 +14,11 @@ class FhemClient(object):
     def __init__(self, host, password, portnum, ssl=False, verify=True):
         self.ssl = ssl
         self.verify = verify
-        if host is None or host == ""
-            host = "192.168.100.96"
-        if portnum is None or portnum == 0:
-            self.portnum = 8083
-            portnum = 8083
+        #if host is None or host == ""
+        host = "192.168.100.96"
+        #if portnum is None or portnum == 0:
+        self.portnum = 8083
+        portnum = 8083
         if self.ssl:
             self.url = "https://%s:%d/fhem" % (host, portnum)
         else:
