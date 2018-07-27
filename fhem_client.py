@@ -23,7 +23,7 @@ class FhemClient(object):
             self.url = "https://%s:%d/fhem" % (host, portnum)
         else:
             self.url = "http://%s:%d/fhem" % (host, portnum)
-        self.csrf = requests.get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
+        self.csrf = get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
         LOG.debug("csrf = %s" % self.csrf)
         self.headers = {
         #    'x-ha-access': password,
@@ -206,7 +206,7 @@ class FhemClient(object):
         cmd_req = BASE_URL + command + "&fwcsrf=" + self.url
         print("cmd_req = %s" % cmd_req)
 
-        req = requests.get(cmd_req)
+        req = get(cmd_req)
         #print("r = %s" % r.text)
         return req
 
