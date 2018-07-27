@@ -50,6 +50,12 @@ class FhemClient(object):
         else:
             pass
 
+    def _normalize(name):
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        return s2.replace("_"," ").replace("-"," ").replace(".", " ")
+
+
     def find_entity(self, entity, types):
         json_data = self._get_state()
         #print("json_data = %s" % json_data)
@@ -64,28 +70,28 @@ class FhemClient(object):
         if json_data:
             for state in json_data["Results"]:
                 #print("state = %s" % state)
-                norm_name = normalize(state['Name'])
+                norm_name = _normalize(state['Name'])
                 #print("norm_name = %s, %s" % (norm_name, norm_name.split(" ")[0]))
                 if 'alias' in state['Attributes']:
                     alias = state['Attributes']['alias']
                 else:
                     alias = state['Name']
-                norm_alias = normalize(alias)
+                norm_alias = _normalize(alias)
                 #print("alias = %s" % norm_alias)
 
                 #if 'genericDeviceType' in state['Attributes']:
                 #    if state['Attributes']['genericDeviceType'] in types:
                 #        print("genericDeviceType = %s" % state['Attributes']['genericDeviceType'])
 
-                #print(normalize(state['Name']).split(" ")[0] in types)
+                #print(_normalize(state['Name']).split(" ")[0] in types)
                 #print((('genericDeviceType' in state['Attributes']) \
                 #    and (state['Attributes']['genericDeviceType'] in types)))
-                #print((normalize(state['Name']).split(" ")[0] in types) \
+                #print((_normalize(state['Name']).split(" ")[0] in types) \
                 #    or (('genericDeviceType' in state['Attributes']) \
                 #        and (state['Attributes']['genericDeviceType'] in types)))
 
                 try:
-                    if ((normalize(state['Name']).split(" ")[0] in types) \
+                    if ((_normalize(state['Name']).split(" ")[0] in types) \
                         or (('genericDeviceType' in state['Attributes']) \
                             and (state['Attributes']['genericDeviceType'] in types))):
                         # something like temperature outside
@@ -106,7 +112,7 @@ class FhemClient(object):
 
                         score = fuzz.token_sort_ratio(
                             entity,
-                            normalize(state['Name']))
+                            _normalize(state['Name']))
 
                         if score > best_score:
                             #print("score for '%s': %f" %(norm_name, score))
@@ -248,8 +254,3 @@ class FhemClient(object):
                         data=json.dumps(data),
                         timeout=TIMEOUT
                         ).json()['speech']['plain']
-
-    def normalize(name):
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-        return s2.replace("_"," ").replace("-"," ").replace(".", " ")
