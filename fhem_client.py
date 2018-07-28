@@ -57,7 +57,6 @@ class FhemClient(object):
 
     def find_entity(self, entity, types):
         json_data = self._get_state()
-        #print("json_data = %s" % json_data)
 
         # require a score above 50%
         best_score = 50
@@ -68,26 +67,12 @@ class FhemClient(object):
 
         if json_data:
             for state in json_data["Results"]:
-                #print("state = %s" % state)
                 norm_name = self._normalize(state['Name'])
-                #print("norm_name = %s, %s" % (norm_name, norm_name.split(" ")[0]))
                 if 'alias' in state['Attributes']:
                     alias = state['Attributes']['alias']
                 else:
                     alias = state['Name']
                 norm_alias = self._normalize(alias)
-                #print("alias = %s" % norm_alias)
-
-                #if 'genericDeviceType' in state['Attributes']:
-                #    if state['Attributes']['genericDeviceType'] in types:
-                #        print("genericDeviceType = %s" % state['Attributes']['genericDeviceType'])
-
-                #print(self._normalize(state['Name']).split(" ")[0] in types)
-                #print((('genericDeviceType' in state['Attributes']) \
-                #    and (state['Attributes']['genericDeviceType'] in types)))
-                #print((self._normalize(state['Name']).split(" ")[0] in types) \
-                #    or (('genericDeviceType' in state['Attributes']) \
-                #        and (state['Attributes']['genericDeviceType'] in types)))
 
                 try:
                     if ((self._normalize(state['Name']).split(" ")[0] in types) \
@@ -96,12 +81,12 @@ class FhemClient(object):
                         # something like temperature outside
                         # should score on "outside temperature sensor"
                         # and repetitions should not count on my behalf
-                        if 'alias' in state['Attributes']:
+                        if (norm_name!=norm_alias) and \
+                           ('alias' in state['Attributes']):
                             score = fuzz.token_sort_ratio(
                                 entity,
                                 norm_alias)
                             if score > best_score:
-                                #print("score for '%s': %f" %(norm_name, score))
                                 best_score = score
                                 best_entity = {
                                     "id": state['Name'],
@@ -114,7 +99,6 @@ class FhemClient(object):
                             self._normalize(state['Name']))
 
                         if score > best_score:
-                            #print("score for '%s': %f" %(norm_name, score))
                             best_score = score
                             best_entity = {
                                 "id": state['Name'],
@@ -123,43 +107,9 @@ class FhemClient(object):
                                 "best_score": best_score}
                 except KeyError:
                     pass #print("KeyError")
-            LOG.debug("bestentity = %s" % best_entity)
+            LOG.debug("best entity = %s" % best_entity)
             return best_entity
-        # json_data = self._get_state()
-        # # require a score above 50%
-        # best_score = 50
-        # best_entity = None
-        # if json_data:
-        #     for state in json_data:
-        #         try:
-        #             if state['Name'].split(".")[0] in types:
-        #                 # something like temperature outside
-        #                 # should score on "outside temperature sensor"
-        #                 # and repetitions should not count on my behalf
-        #                 score = fuzz.token_sort_ratio(
-        #                     entity,
-        #                     state['Attributes']['alias'].lower())
-        #                 if score > best_score:
-        #                     best_score = score
-        #                     best_entity = {
-        #                         "id": state['Name'],
-        #                         "dev_name": state['Attributes']['alias'],
-        #                         "state": state['Readings']['state'],
-        #                         "best_score": best_score}
-        #                 score = fuzz.token_sort_ratio(
-        #                     entity,
-        #                     state['Name'].lower())
-        #                 if score > best_score:
-        #                     best_score = score
-        #                     best_entity = {
-        #                         "id": state['Name'],
-        #                         "dev_name": state['Attributes']['alias'],
-        #                         "state": state['Readings']['state'],
-        #                         "best_score": best_score}
-        #         except KeyError:
-        #             pass
-        #     return best_entity
-
+        
     #
     # checking the entity attributes to be used in the response dialog.
     #
@@ -203,14 +153,13 @@ class FhemClient(object):
         #     r = post("%s/api/services/%s/%s" % (self.url, domain, service),
         #              headers=self.headers, data=json.dumps(data), timeout=TIMEOUT)
         #     return r
-
+        #TODO add code from _get_state for SSL handling
         BASE_URL = "%s?" % self.url
         command = "cmd={}%20{}%20{}".format(cmd,device,value)
         cmd_req = BASE_URL + command + "&fwcsrf=" + self.csrf
-        print("cmd_req = %s" % cmd_req)
+        LOG.debug("cmd_req = %s" % cmd_req)
 
         req = get(cmd_req)
-        #print("r = %s" % r.text)
         return req
 
     def find_component(self, component):

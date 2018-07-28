@@ -166,6 +166,10 @@ class FhemSkill(FallbackSkill):
             return
 
     def handle_light_set_intent(self, message):
+        #TODO not supported yet
+        self.speak_dialog('fhem.error.notsupported')
+        return
+        #
         self._setup()
         if(self.fhem is None):
             self.speak_dialog('fhem.error.setup')
@@ -209,6 +213,10 @@ class FhemSkill(FallbackSkill):
             return
 
     def handle_light_adjust_intent(self, message):
+        #TODO not supported yet
+        self.speak_dialog('fhem.error.notsupported')
+        return
+        #
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
@@ -296,6 +304,10 @@ class FhemSkill(FallbackSkill):
             return
 
     def handle_automation_intent(self, message):
+        #TODO not supported yet
+        self.speak_dialog('fhem.error.notsupported')
+        return
+        #
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
@@ -353,44 +365,52 @@ class FhemSkill(FallbackSkill):
             return
 
         entity = fhem_entity['id']
-
-        # IDEA: set context for 'read it out again' or similar
-        # self.set_context('Entity', fhem_entity['dev_name'])
-
-        unit_measurement = self.fhem.find_entity_attr(entity)
-        if unit_measurement[0] is not None:
-            sensor_unit = unit_measurement[0]
-        else:
-            sensor_unit = ''
-
-        sensor_name = unit_measurement[1]
-        sensor_state = unit_measurement[2]
-        # extract unit for correct pronounciation
-        # this is fully optional
-        try:
-            from quantulum import parser
-            quantulumImport = True
-        except ImportError:
-            quantulumImport = False
-
-        if quantulumImport and unit_measurement != '':
-            quantity = parser.parse((u'{} is {} {}'.format(
-                sensor_name, sensor_state, sensor_unit)))
-            if len(quantity) > 0:
-                quantity = quantity[0]
-                if (quantity.unit.name != "dimensionless" and
-                        quantity.uncertainty <= 0.5):
-                    sensor_unit = quantity.unit.name
-                    sensor_state = quantity.value
+        sensor_name = fhem_entity['dev_name']
+        sensor_state = fhem_entity['state']['Value']
+        sensor_unit = ""
 
         self.speak_dialog('fhem.sensor', data={
-            "dev_name": sensor_name,
-            "value": sensor_state,
-            "unit": sensor_unit})
-        # IDEA: Add some context if the person wants to look the unit up
-        # Maybe also change to name
-        # if one wants to look up "outside temperature"
-        # self.set_context("SubjectOfInterest", sensor_unit)
+             "dev_name": sensor_name,
+             "value": sensor_state,
+             "unit": sensor_unit})
+
+        # # IDEA: set context for 'read it out again' or similar
+        # # self.set_context('Entity', fhem_entity['dev_name'])
+        #
+        # unit_measurement = self.fhem.find_entity_attr(entity)
+        # if unit_measurement[0] is not None:
+        #     sensor_unit = unit_measurement[0]
+        # else:
+        #     sensor_unit = ''
+        #
+        # sensor_name = unit_measurement[1]
+        # sensor_state = unit_measurement[2]
+        # # extract unit for correct pronounciation
+        # # this is fully optional
+        # try:
+        #     from quantulum import parser
+        #     quantulumImport = True
+        # except ImportError:
+        #     quantulumImport = False
+        #
+        # if quantulumImport and unit_measurement != '':
+        #     quantity = parser.parse((u'{} is {} {}'.format(
+        #         sensor_name, sensor_state, sensor_unit)))
+        #     if len(quantity) > 0:
+        #         quantity = quantity[0]
+        #         if (quantity.unit.name != "dimensionless" and
+        #                 quantity.uncertainty <= 0.5):
+        #             sensor_unit = quantity.unit.name
+        #             sensor_state = quantity.value
+        #
+        # self.speak_dialog('fhem.sensor', data={
+        #     "dev_name": sensor_name,
+        #     "value": sensor_state,
+        #     "unit": sensor_unit})
+        # # IDEA: Add some context if the person wants to look the unit up
+        # # Maybe also change to name
+        # # if one wants to look up "outside temperature"
+        # # self.set_context("SubjectOfInterest", sensor_unit)
 
     # In progress, still testing.
     # Device location works.
@@ -398,6 +418,10 @@ class FhemSkill(FallbackSkill):
     # - overlapping command for directions modules
     # - (e.g. "How far is x from y?")
     def handle_tracker_intent(self, message):
+        #TODO not supported yet
+        self.speak_dialog('fhem.error.notsupported')
+        return
+        #
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
@@ -426,6 +450,9 @@ class FhemSkill(FallbackSkill):
                                 'location': dev_location})
 
     def handle_fallback(self, message):
+        #TODO not supported yet
+        return false
+        #
         if not self.enable_fallback:
             return False
         self._setup()
