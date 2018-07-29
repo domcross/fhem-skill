@@ -138,6 +138,9 @@ class FhemSkill(FallbackSkill):
         # IDEA: set context for 'turn it off' again or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
 
+        #keep original actioname for speak_dialog
+        #when device already is in desiredstate
+        original_action = action
         if self.language == 'de' or self.language == 'de-de':
             if ((action == 'ein') or (action == 'an')) :
                 action = 'on'
@@ -148,7 +151,7 @@ class FhemSkill(FallbackSkill):
         if fhem_entity['state']['Value'] == action:
             LOGGER.debug("Entity in requested state")
             self.speak_dialog('fhem.device.already', data={
-                "dev_name": fhem_entity['dev_name'], 'action': action})
+                "dev_name": fhem_entity['dev_name'], 'action': original_action})
         elif action == "toggle":
             if(fhem_entity['state']['Value'] == 'off'):
                 action = 'on'
