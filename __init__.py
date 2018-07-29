@@ -1,6 +1,6 @@
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import FallbackSkill
-from mycroft.util.log import getLogger
+from mycroft.util.log import getLogger, LOG
 
 from os.path import dirname, join
 from requests.exceptions import ConnectionError
@@ -17,11 +17,13 @@ TIMEOUT = 10
 class FhemSkill(FallbackSkill):
 
     def __init__(self):
+        LOG.debug("__init__")
         super(FhemSkill, self).__init__(name="FhemSkill")
         self.fhem = None
         self.enable_fallback = False
 
     def _setup(self, force=False):
+        LOG.debug("_setup")
         if self.settings is not None and (force or self.fhem is None):
             portnumber = self.settings.get('portnum')
             try:

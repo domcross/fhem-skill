@@ -12,6 +12,7 @@ TIMEOUT = 10
 
 class FhemClient(object):
     def __init__(self, host, password, portnum, ssl=False, verify=True):
+        LOG.debug("FhemClient __init__")
         self.ssl = ssl
         self.verify = verify
         if host is None or host == ""
