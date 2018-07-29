@@ -15,7 +15,7 @@ class FhemClient(object):
         LOG.debug("FhemClient __init__")
         self.ssl = ssl
         self.verify = verify
-        if host is None or host == ""
+        if host is None or host == "":
             LOG.debug("set Host to internal default 192.168.100.96")
             host = "192.168.100.96"
         self.host = host
