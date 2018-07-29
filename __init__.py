@@ -355,7 +355,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
-        allowed_types = ['sensor'] #TODO
+        allowed_types = ['sensor','thermometer'] #TODO
         LOGGER.debug("Entity: %s" % entity)
         try:
             fhem_entity = self.fhem.find_entity(entity, allowed_types)
