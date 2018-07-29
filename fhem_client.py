@@ -14,11 +14,14 @@ class FhemClient(object):
     def __init__(self, host, password, portnum, ssl=False, verify=True):
         self.ssl = ssl
         self.verify = verify
-        #if host is None or host == ""
-        host = "192.168.100.96"
-        #if portnum is None or portnum == 0:
-        self.portnum = 8083
-        portnum = 8083
+        if host is None or host == ""
+            LOG.debug("set Host to internal default 192.168.100.96")
+            host = "192.168.100.96"
+        self.host = host
+        if portnum is None or portnum == 0:
+            LOG.debug("set Port to internal default 8083")
+            portnum = 8083
+        self.portnum = portnum
         if self.ssl:
             self.url = "https://%s:%d/fhem" % (host, portnum)
         else:
@@ -109,7 +112,7 @@ class FhemClient(object):
                     pass #print("KeyError")
             LOG.debug("best entity = %s" % best_entity)
             return best_entity
-        
+
     #
     # checking the entity attributes to be used in the response dialog.
     #
