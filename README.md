@@ -7,22 +7,18 @@
 
 
 
-based off the original code from https://github.com/btotharye/mycroft-homeassistant for Home Assistant, spun off my own version for Fhem.
+based off the original code from https://github.com/btotharye/mycroft-homeassistant for Home Assistant, I have spun off my own version for Fhem.
 
 Make sure you have your Fhem settings filled out on home.mycroft.ai.
 
-Testrunner tests are now setup as well to test intents.  
-
 This is a skill to add [Fhem](https://fhem.de) support to
 [Mycroft](https://mycroft.ai). Currently is support turning on and off several
-entity types (`light`, `switch`, `scene`, `groups` and `input_boolean`).
+entity types (`light`, `switch`) and get status information ('sensor','thermometer')
 
 ## Installation
 Before installation ensure you have python-dev package installed for your OS.  For debian this would be `apt-get install python-dev` it is required for the levenstein package.
 
-Should be able to install this now via just saying `Hey Mycroft, install skill fhem` it will then confirm if you want to install it and say yes and you are good to go.
-
-Can also be installed via `msm install https://github.com/domcross/fhem-skill.git`
+This skill can be installed via `msm install https://github.com/domcross/fhem-skill.git`
 
 
 ## Configuration
@@ -39,25 +35,6 @@ are "turn on" and "turn off". Matching to Fhem entity names is done by scanning
 the Fhem API and looking for the closest matching alias name. The matching is fuzzy (thanks
 to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft
 didn't quite get what you said.  I have further expanded this to also look at groups as well as lights.  This way if you say turn on the office light, it will do the group and not just 1 light, this can easily be modified to your preference by just removing group's from the fuzzy logic in the code.
-
-
-Example Code:
-So in the code in this section you can just remove group, etc to your liking for the lighting.  I will eventually set this up as variables you set in your config file soon.
-
-```
-def handle_lighting_intent(self, message):
-        entity = message.data["Entity"]
-        action = message.data["Action"]
-        LOGGER.debug("Entity: %s" % entity)
-        LOGGER.debug("Action: %s" % action)
-        ha_entity = self.ha.find_entity(entity, ['group','light', 'switch', 'scene', 'input_boolean'])
-        if ha_entity is None:
-            #self.speak("Sorry, I can't find the Home Assistant entity %s" % entity)
-            self.speak_dialog('homeassistant.device.unknown', data={"dev_name": ha_entity['dev_name']})
-            return
-        ha_data = {'entity_id': ha_entity['id']}
-```
-
 
 ## Supported Phrases/Entities
 Currently the phrases are:
