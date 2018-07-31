@@ -477,8 +477,13 @@ class FhemSkill(FallbackSkill):
         # default non-parsing answer: "Sorry, I didn't understand that"
         LOG.debug(req)
 
-        answer = self.fhem.get_device('talk')
-
+        req = self.fhem.get_device('talk')
+        if req.status_code == 200:
+            answer = req.json()
+        else:
+            return False
+            
+        LOG.debug(answer)
         if not answer or answer['Readings']['status']['Value'] == "err":
             return False
         elif answer['Readings']['status']['Value'] == "answers":
