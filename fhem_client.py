@@ -192,7 +192,8 @@ class FhemClient(object):
         else:
             return None
         LOG.debug(device)
-        if device['totalResultsReturned']=='1':
+        if device['totalResultsReturned']==1:
+            LOG.debug(device['Results'][0])
             return device['Results'][0]
         else:
             return None
