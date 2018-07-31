@@ -50,6 +50,7 @@ class FhemSkill(FallbackSkill):
                     self.enable_fallback = True
                 else:
                     self.enable_fallback = False
+                LOG.debug('fhem-fallback enabled: %s' % self.enable_fallback)
 
     def _force_setup(self):
         LOGGER.debug('Creating a new Fhem-Client')
@@ -456,6 +457,8 @@ class FhemSkill(FallbackSkill):
                                 'location': dev_location})
 
     def handle_fallback(self, message):
+        LOG.debug("entering handle_fallback with utterance '%s'" %
+                  message.data.get('utterance'))
         if not self.enable_fallback:
             return False
         self._setup()
