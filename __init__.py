@@ -44,8 +44,9 @@ class FhemSkill(FallbackSkill):
                 # Check if conversation component is loaded at fhem-server
                 # and activate fallback accordingly (fhem-server/api/components)
                 # TODO: enable other tools like dialogflow
-                if (self.fhem.get_device('talk') and
-                        self.settings.get('enable_fallback') == 'true'):
+                # if (self.fhem.get_device('talk') and
+                #         self.settings.get('enable_fallback') == 'true'):
+                if self.settings.get('enable_fallback') == 'true'):
                     self.enable_fallback = True
                 else:
                     self.enable_fallback = False
