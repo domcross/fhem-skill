@@ -482,14 +482,17 @@ class FhemSkill(FallbackSkill):
             answer = req.json()
         else:
             return False
-            
+
         LOG.debug(answer)
-        if not answer or answer['Readings']['status']['Value'] == "err":
+        LOG.debug("answer['Readings']['status']['Value'] %s" % answer['Readings']['status']['Value'])
+        if not answer or answer['Readings']['status']['Value'] == 'err':
+            LOG.debug("status err")
             return False
-        elif answer['Readings']['status']['Value'] == "answers":
-            self.speak(answer['Readings']['answers']['Value'] == "err")
+        elif answer['Readings']['status']['Value'] == 'answers':
+            self.speak(answer['Readings']['answers']['Value'])
             return True
         else:
+            LOG.debug("status undefined")
             return False
         # asked_question = False
         # # TODO: maybe enable conversation here if server asks sth like
