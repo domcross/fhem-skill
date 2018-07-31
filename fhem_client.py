@@ -187,8 +187,13 @@ class FhemClient(object):
         #retrieve a FHEM-device by name
         req = self.execute_service("jsonlist2","NAME={}&XHR=1".format(name))
         LOG.debug(req)
-        if req['totalResultsReturned']=='1':
-            return req['Results'][0]
+        if req.status_code == 200:
+            device = req.json()
+        else:
+            return None
+        LOG.debug(device)
+        if device['totalResultsReturned']=='1':
+            return device['Results'][0]
         else:
             return None
 
