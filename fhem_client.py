@@ -183,9 +183,9 @@ class FhemClient(object):
         if req.status_code == 200:
             return component in req.json()
 
-    def get_device(self, name):
-        #retrieve a FHEM-device by name
-        req = self.execute_service("jsonlist2","NAME={}&XHR=1".format(name))
+    def get_device(self, name, value):
+        #retrieve a FHEM-device by NAME=VALUE pair
+        req = self.execute_service("jsonlist2","{}={}&XHR=1".format(name,value))
 
         if req.status_code == 200:
             device = req.json()

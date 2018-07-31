@@ -47,7 +47,10 @@ class FhemSkill(FallbackSkill):
                 # if (self.fhem.get_device('talk') and
                 #         self.settings.get('enable_fallback') == 'true'):
                 if self.settings.get('enable_fallback') == 'true':
-                    self.enable_fallback = True
+                    t2f_device = self.fhem.get_device("i:TYPE","Talk2Fhem")
+                    if t2f_device:
+                        self.t2f_name = t2f_device['Name']
+                        self.enable_fallback = True
                 else:
                     self.enable_fallback = False
                 LOG.debug('fhem-fallback enabled: %s' % self.enable_fallback)
@@ -474,18 +477,11 @@ class FhemSkill(FallbackSkill):
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return False
-        # default non-parsing answer: "Sorry, I didn't understand that"
 
-        answer = self.fhem.get_device("talk")
-        # if req.status_code == 200:
-        #     answer = req.json()
-        # else:
-        #     return False
+        answer = self.fhem.get_device("NAME",self.t2f_name)
+        #LOG.debug(answer)
 
-        LOG.debug(answer)
-        LOG.debug("answer['Readings']['status']['Value'] %s" % answer['Readings']['status']['Value'])
         if not answer or answer['Readings']['status']['Value'] == 'err':
-            LOG.debug("status err")
             return False
         elif answer['Readings']['status']['Value'] == 'answers':
             self.speak(answer['Readings']['answers']['Value'])
@@ -499,7 +495,6 @@ class FhemSkill(FallbackSkill):
         # if answer.endswith("?"):
         #     asked_question = True
         # self.speak(answer, expect_response=asked_question)
-
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)
