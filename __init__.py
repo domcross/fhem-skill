@@ -475,9 +475,8 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.offline')
             return False
         # default non-parsing answer: "Sorry, I didn't understand that"
-        LOG.debug(req)
-
-        req = self.fhem.get_device('talk')
+        
+        req = self.fhem.get_device("talk")
         if req.status_code == 200:
             answer = req.json()
         else:
