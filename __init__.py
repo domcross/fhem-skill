@@ -44,10 +44,11 @@ class FhemSkill(FallbackSkill):
                 # Check if conversation component is loaded at fhem-server
                 # and activate fallback accordingly (fhem-server/api/components)
                 # TODO: enable other tools like dialogflow
-                # if (self.fhem.find_component('conversation') and
-                #         self.settings.get('enable_fallback') == 'true'):
-                #     self.enable_fallback = True
-                self.enable_fallback = False
+                if (self.fhem.get_device('talk') and
+                        self.settings.get('enable_fallback') == 'true'):
+                    self.enable_fallback = True
+                else:
+                    self.enable_fallback = False
 
     def _force_setup(self):
         LOGGER.debug('Creating a new Fhem-Client')
@@ -131,8 +132,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.offline')
             return
         if fhem_entity is None:
-            self.speak_dialog('fhem.device.unknown', data={
-                              "dev_name": entity})
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
             return
         LOGGER.debug("Entity State: %s" % fhem_entity['state'])
         fhem_data = {'entity_id': fhem_entity['id']}
@@ -455,9 +455,6 @@ class FhemSkill(FallbackSkill):
                                 'location': dev_location})
 
     def handle_fallback(self, message):
-        #TODO not supported yet
-        return false
-        #
         if not self.enable_fallback:
             return False
         self._setup()
@@ -466,23 +463,32 @@ class FhemSkill(FallbackSkill):
             return False
         # pass message to FHEM-server
         try:
-            response = self.fhem.engage_conversation(
-                message.data.get('utterance'))
+            # response = self.fhem.engage_conversation(
+            #     message.data.get('utterance'))
+            req = self.fhem.execute_service("set", "talk",
+                                                 message.data.get('utterance'))
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return False
         # default non-parsing answer: "Sorry, I didn't understand that"
-        answer = response.get('speech')
-        if not answer or answer == "Sorry, I didn't understand that":
-            return False
+        LOG.debug(req)
 
-        asked_question = False
-        # TODO: maybe enable conversation here if server asks sth like
-        # "In which room?" => answer should be directly passed to this skill
-        if answer.endswith("?"):
-            asked_question = True
-        self.speak(answer, expect_response=asked_question)
-        return True
+        answer = self.fhem.get_device('talk')
+
+        if not answer or answer['Readings']['status']['Value'] == "err":
+            return False
+        elif answer['Readings']['status']['Value'] == "answers":
+            self.speak(answer['Readings']['answers']['Value'] == "err")
+            return True
+        else:
+            return False
+        # asked_question = False
+        # # TODO: maybe enable conversation here if server asks sth like
+        # # "In which room?" => answer should be directly passed to this skill
+        # if answer.endswith("?"):
+        #     asked_question = True
+        # self.speak(answer, expect_response=asked_question)
+
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)

@@ -147,7 +147,7 @@ class FhemClient(object):
         return None
 
     #def execute_service(self, domain, service, data):
-    def execute_service(self, cmd, device, value):
+    def execute_service(self, cmd, device=None, value=None):
         # if self.ssl:
         #     r = post("%s/api/services/%s/%s" % (self.url, domain, service),
         #              headers=self.headers, data=json.dumps(data),
@@ -159,7 +159,11 @@ class FhemClient(object):
         #     return r
         #TODO add code from _get_state for SSL handling
         BASE_URL = "%s?" % self.url
-        command = "cmd={}%20{}%20{}".format(cmd,device,value)
+        command = "cmd={}".format(cmd)
+        if device is not None:
+            command += "%20{}".format(device)
+        if value is not None:
+            command += "%20{}".format(value)
         cmd_req = BASE_URL + command + "&fwcsrf=" + self.csrf
         LOG.debug("cmd_req = %s" % cmd_req)
 
@@ -178,6 +182,15 @@ class FhemClient(object):
 
         if req.status_code == 200:
             return component in req.json()
+
+    def get_device(self, name):
+        #retrieve a FHEM-device by name
+        req = self.execute_service("jsonlist2","NAME={}".format(name)).json()
+        LOG.debug(req)
+        if req['totalResultsReturned']=='1':
+            return req['Results'][0]
+        else:
+            return None
 
     def engage_conversation(self, utterance):
         """Engage the conversation component (Babble?) at the Fhem server
