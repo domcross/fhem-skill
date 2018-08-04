@@ -1,6 +1,6 @@
 {
   "identifier": "FhemSkill",
-  "name": "Fhem",
+  "name": "FHEM home automation",
   "skillMetadata": {
       "sections": [
           {
@@ -22,10 +22,27 @@
                       "name": "portnum",
                       "type": "Number",
                       "label": "Port number",
-                      "value": "8123"
+                      "value": "8083"
                   }
               ]
           },
+          {
+              "name": "Fallback",
+              "fields": [
+                  {
+                      "name": "enable_fallback",
+                      "type": "checkbox",
+                      "label": "Enable conversation component as fallback",
+                      "value": "true"
+                  },
+                  {
+                      "name": "fallback_devicename",
+                      "type": "text",
+                      "label": "Name of fallback device (must be of Type Talk2Fhem or TEERKO)",
+                      "value": ""
+                  }
+              ]
+          }
           {
               "name": "Options",
               "fields": [
@@ -39,12 +56,6 @@
                       "name": "verify",
                       "type": "checkbox",
                       "label": "Verify SSL Certificate",
-                      "value": "true"
-                  },
-                  {
-                      "name": "enable_fallback",
-                      "type": "checkbox",
-                      "label": "Enable conversation component as fallback",
                       "value": "true"
                   }
               ]

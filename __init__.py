@@ -41,16 +41,19 @@ class FhemSkill(FallbackSkill):
                 self.settings.get('verify') == 'true'
             )
             if self.fhem:
-                # Check if conversation component is loaded at fhem-server
-                # and activate fallback accordingly (fhem-server/api/components)
-                # TODO: enable other tools like dialogflow
-                # if (self.fhem.get_device('talk') and
-                #         self.settings.get('enable_fallback') == 'true'):
+                # Check if natural language control  is loaded at fhem-server
+                # and activate fallback accordingly
                 if self.settings.get('enable_fallback') == 'true':
-                    t2f_device = self.fhem.get_device("i:TYPE","Talk2Fhem")
-                    if t2f_device:
-                        self.t2f_name = t2f_device['Name']
-                        self.enable_fallback = True
+                    fallback_device = self.fhem.get_device("NAME",
+                                    self.settings.get('fallback_device_name'))
+                    if fallback_device:
+                        self.fallback_device_name = fallback_device['Name']
+                        self.fallback_device_type =
+                                            fallback_device['Internals']['TYPE']
+                        if fallback_device['Internals']['TYPE'] == "Talk2Fhem":
+                            self.enable_fallback = True #currently only T2F
+                        else:
+                            self.enable_fallback = True
                 else:
                     self.enable_fallback = False
                 LOG.debug('fhem-fallback enabled: %s' % self.enable_fallback)
@@ -464,28 +467,42 @@ class FhemSkill(FallbackSkill):
                   message.data.get('utterance'))
         if not self.enable_fallback:
             return False
+
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return False
+
         # pass message to FHEM-server
         try:
-            # response = self.fhem.engage_conversation(
-            #     message.data.get('utterance'))
-            req = self.fhem.execute_service("set", "talk",
-                                                 message.data.get('utterance'))
+            if self.fallback_device_type == "TEERKO":
+                req = self.fhem.execute_service("set",
+                        self.fallback_device_name,
+                        "TextCommand {}".format(message.data.get('utterance')))
+            elif self.fallback_device_type == "Talk2Fhem":
+                req = self.fhem.execute_service("set",
+                        self.fallback_device_name,
+                        message.data.get('utterance'))
+            else:
+                return False
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return False
 
-        answer = self.fhem.get_device("NAME",self.t2f_name)
+        answer = self.fhem.get_device("NAME",self.fallback_device_name)
         #LOG.debug(answer)
 
         if not answer or answer['Readings']['status']['Value'] == 'err':
             return False
-        elif answer['Readings']['status']['Value'] == 'answers':
-            self.speak(answer['Readings']['answers']['Value'])
-            return True
+
+        if self.fallback_device_type == "Talk2Fhem":
+            if answer['Readings']['status']['Value'] == 'answers':
+                self.speak(answer['Readings']['answers']['Value'])
+                return True
+        elif self.fallback_device_type == "TEERKO":
+            if answer['Readings']['status']['Value'] == 'answers':
+                self.speak(answer['Readings']['answers']['Value'])
+                return True
         else:
             LOG.debug("status undefined")
             return False
