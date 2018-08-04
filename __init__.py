@@ -50,8 +50,7 @@ class FhemSkill(FallbackSkill):
                                     self.settings.get('fallback_device_name'))
                     if fallback_device:
                         self.fallback_device_name = fallback_device['Name']
-                        self.fallback_device_type =
-                                            fallback_device['Internals']['TYPE']
+                        self.fallback_device_type = fallback_device['Internals']['TYPE']
                         if fallback_device['Internals']['TYPE'] == "Talk2Fhem":
                             self.enable_fallback = True #currently only T2F
                         else:
