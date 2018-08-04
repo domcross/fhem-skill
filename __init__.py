@@ -43,7 +43,9 @@ class FhemSkill(FallbackSkill):
             if self.fhem:
                 # Check if natural language control  is loaded at fhem-server
                 # and activate fallback accordingly
-                if self.settings.get('enable_fallback') == 'true':
+                LOG.debug("fallback_device_name %s" % self.settings.get('fallback_device_name'))
+                if self.settings.get('enable_fallback') == 'true' and \
+                    self.settings.get('fallback_device_name') != "":
                     fallback_device = self.fhem.get_device("NAME",
                                     self.settings.get('fallback_device_name'))
                     if fallback_device:
