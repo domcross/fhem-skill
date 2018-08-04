@@ -148,15 +148,6 @@ class FhemClient(object):
 
     #def execute_service(self, domain, service, data):
     def execute_service(self, cmd, device=None, value=None):
-        # if self.ssl:
-        #     r = post("%s/api/services/%s/%s" % (self.url, domain, service),
-        #              headers=self.headers, data=json.dumps(data),
-        #              verify=self.verify, timeout=TIMEOUT)
-        #     return r
-        # else:
-        #     r = post("%s/api/services/%s/%s" % (self.url, domain, service),
-        #              headers=self.headers, data=json.dumps(data), timeout=TIMEOUT)
-        #     return r
         #TODO add code from _get_state for SSL handling
         BASE_URL = "%s?" % self.url
         command = "cmd={}".format(cmd)
@@ -184,7 +175,8 @@ class FhemClient(object):
             return component in req.json()
 
     def get_device(self, name, value):
-        #retrieve a FHEM-device by NAME=VALUE pair
+        #retrieve a FHEM-device by name=value
+        LOG.debug("retrieve a FHEM-device by {}={}".format(name,value))
         req = self.execute_service("jsonlist2","{}={}&XHR=1".format(name,value))
 
         if req.status_code == 200:
