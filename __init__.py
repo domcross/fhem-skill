@@ -45,7 +45,7 @@ class FhemSkill(FallbackSkill):
                 # and activate fallback accordingly
                 LOG.debug("fallback_device_name %s" % self.settings.get('fallback_device_name'))
                 if self.settings.get('enable_fallback') == 'true' and \
-                    self.settings.get('fallback_device_name') != "":
+                    self.settings.get('fallback_device_name') is not None:
                     fallback_device = self.fhem.get_device("NAME",
                                     self.settings.get('fallback_device_name'))
                     if fallback_device:
@@ -490,29 +490,34 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.offline')
             return False
 
-        answer = self.fhem.get_device("NAME",self.fallback_device_name)
-        #LOG.debug(answer)
+        result = self.fhem.get_device("NAME",self.fallback_device_name)
+        #LOG.debug(result)
 
-        if not answer or answer['Readings']['status']['Value'] == 'err':
+        if not result: # or result['Readings']['status']['Value'] == 'err':
             return False
 
+        answer = ""
         if self.fallback_device_type == "Talk2Fhem":
-            if answer['Readings']['status']['Value'] == 'answers':
-                self.speak(answer['Readings']['answers']['Value'])
-                return True
+            if result['Readings']['status']['Value'] == 'answers':
+                answer = result['Readings']['answers']['Value']
+            else:
+                return False
         elif self.fallback_device_type == "TEERKO":
-            if answer['Readings']['status']['Value'] == 'answers':
-                self.speak(answer['Readings']['answers']['Value'])
-                return True
+            if result['Readings']['status']['Value'] is not None:
+                answer = result['Readings']['answers']['Value']
         else:
             LOG.debug("status undefined")
             return False
-        # asked_question = False
-        # # TODO: maybe enable conversation here if server asks sth like
-        # # "In which room?" => answer should be directly passed to this skill
-        # if answer.endswith("?"):
-        #     asked_question = True
-        # self.speak(answer, expect_response=asked_question)
+
+        if answer == "":
+            return false
+
+        asked_question = False
+        # TODO: maybe enable conversation here if server asks sth like
+        # "In which room?" => answer should be directly passed to this skill
+        if answer.endswith("?"):
+            asked_question = True
+        self.speak(answer, expect_response=asked_question)
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)
