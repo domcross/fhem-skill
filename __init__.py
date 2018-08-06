@@ -503,8 +503,8 @@ class FhemSkill(FallbackSkill):
             else:
                 return False
         elif self.fallback_device_type == "TEERKO":
-            if result['Readings']['status']['Value'] is not None:
-                answer = result['Readings']['answers']['Value']
+            if result['Readings']['Answer']['Value'] is not None:
+                answer = result['Readings']['Answer']['Value']
         else:
             LOG.debug("status undefined")
             return False
