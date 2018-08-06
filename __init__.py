@@ -467,31 +467,37 @@ class FhemSkill(FallbackSkill):
         LOG.debug("entering handle_fallback with utterance '%s'" %
                   message.data.get('utterance'))
         if not self.enable_fallback:
+            LOG.debug("fallback not enabled!")
             return False
 
         self._setup()
         if self.fhem is None:
+            LOG.debug("FHEM setup error")
             self.speak_dialog('fhem.error.setup')
             return False
 
         # pass message to FHEM-server
         try:
             if self.fallback_device_type == "TEERKO":
+                LOG.debug("fallback device type TEERKO")
                 req = self.fhem.execute_service("set",
                         self.fallback_device_name,
                         "TextCommand {}".format(message.data.get('utterance')))
             elif self.fallback_device_type == "Talk2Fhem":
+                LOG.debug("fallback device type Talk2Fhem")
                 req = self.fhem.execute_service("set",
                         self.fallback_device_name,
                         message.data.get('utterance'))
             else:
+                LOG.debug("fallback device type UNKNOWN")
                 return False
         except ConnectionError:
+            LOG.debug("connection error")
             self.speak_dialog('fhem.error.offline')
             return False
 
         result = self.fhem.get_device("NAME",self.fallback_device_name)
-        #LOG.debug(result)
+        LOG.debug("result: %S" % result)
 
         if not result: # or result['Readings']['status']['Value'] == 'err':
             return False
@@ -499,25 +505,30 @@ class FhemSkill(FallbackSkill):
         answer = ""
         if self.fallback_device_type == "Talk2Fhem":
             if result['Readings']['status']['Value'] == 'answers':
+                LOG.debug("answering with Talk2Fhem result")
                 answer = result['Readings']['answers']['Value']
             else:
                 return False
         elif self.fallback_device_type == "TEERKO":
             if result['Readings']['Answer']['Value'] is not None:
+                LOG.debug("answering with TEERKO result")
                 answer = result['Readings']['Answer']['Value']
         else:
             LOG.debug("status undefined")
             return False
 
         if answer == "":
+            LOG.debug("empty answer")
             return false
 
         asked_question = False
         # TODO: maybe enable conversation here if server asks sth like
         # "In which room?" => answer should be directly passed to this skill
         if answer.endswith("?"):
+            LOG.debug("answer endswith question mark")
             asked_question = True
         self.speak(answer, expect_response=asked_question)
+        return true
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)
