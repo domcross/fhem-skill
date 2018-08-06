@@ -496,7 +496,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.offline')
             return False
 
-        result = self.fhem.get_device("NAME",self.fallback_device_name)
+        result = self.fhem.get_device("NAME",self.fallback_device_name).json()
         LOG.debug("result: %S" % result)
 
         if not result: # or result['Readings']['status']['Value'] == 'err':
