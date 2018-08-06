@@ -497,9 +497,10 @@ class FhemSkill(FallbackSkill):
             return False
 
         result = self.fhem.get_device("NAME",self.fallback_device_name)
-        LOG.debug("result: %s" % result)
+        #LOG.debug("result: %s" % result)
 
         if not result: # or result['Readings']['status']['Value'] == 'err':
+            LOG.debug("no result")
             return False
 
         answer = ""
@@ -513,13 +514,15 @@ class FhemSkill(FallbackSkill):
             if result['Readings']['Answer']['Value'] is not None:
                 LOG.debug("answering with TEERKO result")
                 answer = result['Readings']['Answer']['Value']
+            else:
+                return False
         else:
             LOG.debug("status undefined")
             return False
 
         if answer == "":
             LOG.debug("empty answer")
-            return false
+            return False
 
         asked_question = False
         # TODO: maybe enable conversation here if server asks sth like
@@ -528,7 +531,7 @@ class FhemSkill(FallbackSkill):
             LOG.debug("answer endswith question mark")
             asked_question = True
         self.speak(answer, expect_response=asked_question)
-        return true
+        return True
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)
