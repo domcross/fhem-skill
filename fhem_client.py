@@ -3,6 +3,7 @@ from requests import get, post
 from fuzzywuzzy import fuzz
 import json
 import re
+import time
 
 __author__ = 'domcross, btotharye'
 
@@ -27,25 +28,33 @@ class FhemClient(object):
             self.url = "https://%s:%d/fhem" % (host, portnum)
         else:
             self.url = "http://%s:%d/fhem" % (host, portnum)
-        self.csrf = get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
+        self.csrf_ts = 0
+        self.csrf = __get_csrf()
+
         LOG.debug("csrf = %s" % self.csrf)
         self.headers = {
         #    'x-ha-access': password,
             'Content-Type': 'application/json'
         }
 
+    def __get_csrf(self):
+        if (time.time() - self.csrf) > 60:
+            self.csrf = get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
+            self.csrf_ts = time.time()
+        return self.csrf
+
     def _get_state(self):
         # devices auslesen
         command = "cmd=jsonlist2%20room=Homebridge&XHR=1"
         if self.ssl:
             req = get("%s?%s&fwcsrf=%s" %
-                      (self.url, command, self.csrf),
+                      (self.url, command, self.__get_csrf()),
                       headers=self.headers,
                       verify=self.verify,
                       timeout=TIMEOUT)
         else:
             req = get("%s?%s&fwcsrf=%s" %
-                      (self.url, command, self.csrf),
+                      (self.url, command, self.__get_csrf()),
                       headers=self.headers,
                       timeout=TIMEOUT)
 
@@ -155,7 +164,7 @@ class FhemClient(object):
             command += "%20{}".format(device)
         if value is not None:
             command += "%20{}".format(value)
-        cmd_req = BASE_URL + command + "&fwcsrf=" + self.csrf
+        cmd_req = BASE_URL + command + "&fwcsrf=" + self.__get_csrf()
         LOG.debug("cmd_req = %s" % cmd_req)
 
         req = get(cmd_req)

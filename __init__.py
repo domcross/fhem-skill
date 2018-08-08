@@ -83,7 +83,7 @@ class FhemSkill(FallbackSkill):
         LOG.debug("websettings changed")
         if self.settings.get('host', None):
             try:
-                self._setup()
+                self._setup(True)
             except Exception:
                 pass
 
