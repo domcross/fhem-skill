@@ -366,6 +366,7 @@ class FhemSkill(FallbackSkill):
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return
+
         entity = message.data["Entity"]
         allowed_types = ['sensor','thermometer'] #TODO
         LOGGER.debug("Entity: %s" % entity)
@@ -381,9 +382,22 @@ class FhemSkill(FallbackSkill):
 
         entity = fhem_entity['id']
         sensor_name = fhem_entity['dev_name']
-        sensor_state = fhem_entity['state']['Value']
+        sensor_state = "" #fhem_entity['state']['Value']
         sensor_unit = ""
 
+        tokens = fhem_entity['state']['Value'].split(" ")
+        for t in xrange(0,len(tokens)):
+            tok = tokens[t].lower().replace(":","")
+            if tok in ['t','temp','temperatur','temperature']:
+                sensor_state += "Temperatur "
+            elif tok in ['h','hum','humidity']:
+                sensor_state += "Luftfeuchtigkeit "
+            elif tokens[t].lower() in ['p','pamb','press','pressure']:
+                sensor_state += "Luftdruck "
+            else:
+                sensor_state += tokens[t]
+        LOG.debug("fhem_entity['state']['Value']: %s" % fhem_entity['state']['Value'])
+        LOG.debug("sensor_state: %s" %s)
         self.speak_dialog('fhem.sensor', data={
              "dev_name": sensor_name,
              "value": sensor_state,
