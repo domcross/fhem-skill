@@ -37,7 +37,7 @@ class FhemClient(object):
             'Content-Type': 'application/json'
         }
 
-    def _get_csrf(self):
+    def __get_csrf(self):
         # retrieve new csrf-token when older than 60 seconds
         if (time.time() - self.csrf) > 60:
             self.csrf = get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
