@@ -388,6 +388,7 @@ class FhemSkill(FallbackSkill):
         tokens = fhem_entity['state']['Value'].split(" ")
         for t in range(0,len(tokens)):
             tok = tokens[t].lower().replace(":","")
+            LOG.debug("tok = %s" %s)
             if tok in ['t','temp','temperatur','temperature']:
                 sensor_state += "Temperatur"
             elif tok in ['h','hum','humidity']:
@@ -397,7 +398,7 @@ class FhemSkill(FallbackSkill):
             else:
                 sensor_state += tokens[t]
             sensor_state += " "
-            
+
         LOG.debug("fhem_entity['state']['Value']: %s" % fhem_entity['state']['Value'])
         LOG.debug("sensor_state: %s" % sensor_state)
         self.speak_dialog('fhem.sensor', data={
