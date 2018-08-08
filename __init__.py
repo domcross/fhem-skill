@@ -397,7 +397,7 @@ class FhemSkill(FallbackSkill):
             else:
                 sensor_state += tokens[t]
         LOG.debug("fhem_entity['state']['Value']: %s" % fhem_entity['state']['Value'])
-        LOG.debug("sensor_state: %s" %s)
+        LOG.debug("sensor_state: %s" % sensor_state)
         self.speak_dialog('fhem.sensor', data={
              "dev_name": sensor_name,
              "value": sensor_state,
