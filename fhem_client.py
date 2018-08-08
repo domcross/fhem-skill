@@ -39,7 +39,7 @@ class FhemClient(object):
 
     def __get_csrf(self):
         # retrieve new csrf-token when older than 60 seconds
-        if (time.time() - self.csrf) > 60:
+        if (time.time() - self.csrf_ts) > 60:
             self.csrf = get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
             self.csrf_ts = time.time()
         return self.csrf
