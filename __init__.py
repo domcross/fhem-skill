@@ -80,6 +80,7 @@ class FhemSkill(FallbackSkill):
 
     def on_websettings_changed(self):
         # Only attempt to load if the host is set
+        LOG.debug("websettings changed")
         if self.settings.get('host', None):
             try:
                 self._setup()
@@ -152,8 +153,8 @@ class FhemSkill(FallbackSkill):
         #keep original actioname for speak_dialog
         #when device already is in desiredstate
         original_action = action
-        if self.language == 'de' or self.language == 'de-de':
-            if ((action == 'ein') or (action == 'an')) :
+        if self.language.lower().startswith("de"):
+            if (action == 'ein') or (action == 'an'):
                 action = 'on'
             elif action == 'aus':
                 action = 'off'
