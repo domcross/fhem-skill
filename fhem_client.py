@@ -28,7 +28,7 @@ class FhemClient(object):
             self.url = "https://%s:%d/fhem" % (host, portnum)
         else:
             self.url = "http://%s:%d/fhem" % (host, portnum)
-        self.csrf_ts = 0
+        self.csrf_ts = 0 # on init force update of csrf-token
         self.csrf = __get_csrf()
 
         LOG.debug("csrf = %s" % self.csrf)
@@ -38,6 +38,7 @@ class FhemClient(object):
         }
 
     def __get_csrf(self):
+        # retrieve new csrf-token when older than 60 seconds
         if (time.time() - self.csrf) > 60:
             self.csrf = get(self.url + "?XHR=1").headers['X-FHEM-csrfToken']
             self.csrf_ts = time.time()
