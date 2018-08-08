@@ -29,7 +29,7 @@ class FhemClient(object):
         else:
             self.url = "http://%s:%d/fhem" % (host, portnum)
         self.csrf_ts = 0 # on init force update of csrf-token
-        self.csrf = __get_csrf()
+        self.csrf = self.__get_csrf()
 
         LOG.debug("csrf = %s" % self.csrf)
         self.headers = {
