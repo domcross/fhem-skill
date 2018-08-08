@@ -389,13 +389,15 @@ class FhemSkill(FallbackSkill):
         for t in range(0,len(tokens)):
             tok = tokens[t].lower().replace(":","")
             if tok in ['t','temp','temperatur','temperature']:
-                sensor_state += "Temperatur "
+                sensor_state += "Temperatur"
             elif tok in ['h','hum','humidity']:
-                sensor_state += "Luftfeuchtigkeit "
+                sensor_state += "Luftfeuchtigkeit"
             elif tokens[t].lower() in ['p','pamb','press','pressure']:
-                sensor_state += "Luftdruck "
+                sensor_state += "Luftdruck"
             else:
                 sensor_state += tokens[t]
+            sensor_state += " "
+            
         LOG.debug("fhem_entity['state']['Value']: %s" % fhem_entity['state']['Value'])
         LOG.debug("sensor_state: %s" % sensor_state)
         self.speak_dialog('fhem.sensor', data={
