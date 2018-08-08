@@ -386,7 +386,7 @@ class FhemSkill(FallbackSkill):
         sensor_unit = ""
 
         tokens = fhem_entity['state']['Value'].split(" ")
-        for t in xrange(0,len(tokens)):
+        for t in range(0,len(tokens)):
             tok = tokens[t].lower().replace(":","")
             if tok in ['t','temp','temperatur','temperature']:
                 sensor_state += "Temperatur "
