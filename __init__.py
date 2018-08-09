@@ -390,11 +390,11 @@ class FhemSkill(FallbackSkill):
             tok = tokens[t].lower().replace(":","")
             #LOG.debug("tok = %s" % tok)
             if tok in ['t','temp','temperatur','temperature']:
-                sensor_state += "Temperatur"
+                sensor_state += self.__translate("sensor.temperature")
             elif tok in ['h','hum','humidity']:
-                sensor_state += "Luftfeuchtigkeit"
+                sensor_state += self.__translate("sensor.humidity")
             elif tok in ['p','pamb','press','pressure']:
-                sensor_state += "Luftdruck"
+                sensor_state += self.__translate("sensor.pressure")
             else:
                 sensor_state += tokens[t]
             sensor_state += " "
@@ -558,6 +558,12 @@ class FhemSkill(FallbackSkill):
     def stop(self):
         pass
 
+    def __translate(self, term, data=None):
+        try:
+            return self.dialog_renderer.render(term, data)
+        except BaseException:
+            #no dialog at all (e.g. unsupported language or unknown term
+            return term
 
 def create_skill():
     return FhemSkill()
