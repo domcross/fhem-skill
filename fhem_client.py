@@ -108,7 +108,7 @@ class FhemClient(object):
                 LOG.debug("types = %s" % types)
 
                 try:
-                    if any(n in norm_name_list for n in types) \
+                    if (any(n in norm_name_list for n in types) \
                         or (('genericDeviceType' in state['Attributes']) \
                             and (state['Attributes']['genericDeviceType'] in types))):
                         # something like temperature outside
