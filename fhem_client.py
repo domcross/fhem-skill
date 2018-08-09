@@ -131,7 +131,7 @@ class FhemClient(object):
 
                         score = fuzz.token_sort_ratio(
                             entity,
-                            self._normalize(state['Name']))
+                            norm_name)
 
                         if score > best_score:
                             best_score = score
