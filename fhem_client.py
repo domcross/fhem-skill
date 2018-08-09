@@ -37,7 +37,7 @@ class FhemClient(object):
             'Content-Type': 'application/json'
         }
         self.room = "Homebridge" #TODO settings
-        self.ignore_rooms = "IT,CUL_HM,ESPEasy,_LOG" #TODO settings
+        self.ignore_rooms = "IT,CUL_HM,ESPEasy,_LOG,Homebridge" #TODO settings
 
 
     def __get_csrf(self):
@@ -106,6 +106,8 @@ class FhemClient(object):
 
                 LOG.debug("norm_name_list = %s" % norm_name_list)
                 LOG.debug("types = %s" % types)
+                LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
+                LOG.debug("types-list: %s" % any(n in types for n in norm_name_list))
 
                 try:
                     if (any(n in norm_name_list for n in types) \
