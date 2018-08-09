@@ -36,6 +36,9 @@ class FhemClient(object):
         #    'x-ha-access': password,
             'Content-Type': 'application/json'
         }
+        self.room = "Homebridge" #TODO settings
+        self.ignore_rooms = "IT,CUL_HM,ESPEasy,_LOG" #TODO settings
+
 
     def __get_csrf(self):
         # retrieve new csrf-token when older than 60 seconds
@@ -46,7 +49,7 @@ class FhemClient(object):
 
     def _get_state(self):
         # devices auslesen
-        command = "cmd=jsonlist2%20room=Homebridge&XHR=1"
+        command = "cmd=jsonlist2%20room={}&XHR=1".format(self.room)
         if self.ssl:
             req = get("%s?%s&fwcsrf=%s" %
                       (self.url, command, self.__get_csrf()),
@@ -82,6 +85,19 @@ class FhemClient(object):
         if json_data:
             for state in json_data["Results"]:
                 norm_name = self._normalize(state['Name'])
+                norm_name_list = norm_name.split(" ")
+
+                # add room to name
+                room = ""
+                ignore = self.ignore_rooms.split(",")
+                if 'room' in state['Attributes']:
+                    for r in state['Attributes']['room'].split(","):
+                        if (r not in ignore) and (r not in norm_name_list):
+                            room += (" " + r)
+
+                norm_name += self._normalize(room)
+                LOG.debug("norm_name = %s" % norm_name)
+
                 if 'alias' in state['Attributes']:
                     alias = state['Attributes']['alias']
                 else:
@@ -89,7 +105,7 @@ class FhemClient(object):
                 norm_alias = self._normalize(alias)
 
                 try:
-                    if ((self._normalize(state['Name']).split(" ")[0] in types) \
+                    if any(n in norm_name_list for n in types) \
                         or (('genericDeviceType' in state['Attributes']) \
                             and (state['Attributes']['genericDeviceType'] in types))):
                         # something like temperature outside
