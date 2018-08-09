@@ -104,6 +104,9 @@ class FhemClient(object):
                     alias = state['Name']
                 norm_alias = self._normalize(alias)
 
+                LOG.debug("norm_name_list = %s" % norm_name_list)
+                LOG.debug("types = %s" % types)
+
                 try:
                     if any(n in norm_name_list for n in types) \
                         or (('genericDeviceType' in state['Attributes']) \
