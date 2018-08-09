@@ -92,7 +92,7 @@ class FhemClient(object):
                 ignore = self.ignore_rooms.split(",")
                 if 'room' in state['Attributes']:
                     for r in state['Attributes']['room'].split(","):
-                        if (r not in ignore) and (r not in norm_name_list):
+                        if (r not in ignore) and (r.lower() not in norm_name_list):
                             room += (" " + r)
 
                 norm_name += self._normalize(room)
