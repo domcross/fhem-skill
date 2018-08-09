@@ -106,8 +106,8 @@ class FhemClient(object):
 
                 LOG.debug("norm_name_list = %s" % norm_name_list)
                 LOG.debug("types = %s" % types)
-                LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
-                LOG.debug("types-list: %s" % any(n in types for n in norm_name_list))
+                #LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
+                #LOG.debug("types-list: %s" % any(n in types for n in norm_name_list))
 
                 try:
                     if (any(n in norm_name_list for n in types) \
@@ -125,14 +125,14 @@ class FhemClient(object):
                                 best_score = score
                                 best_entity = {
                                     "id": state['Name'],
-                                    "dev_name": state['Attributes']['alias'],
+                                    "dev_name": alias,
                                     "state": state['Readings']['state'],
                                     "best_score": best_score}
 
                         score = fuzz.token_sort_ratio(
                             entity,
                             norm_name)
-
+                        LOG.debug("%s %s" % (norm_name, score))
                         if score > best_score:
                             best_score = score
                             best_entity = {
