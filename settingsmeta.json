@@ -44,19 +44,19 @@
                   {
                       "name": "fallback_device_name",
                       "type": "text",
-                      "label": "Name of fallback device",
+                      "label": "Name of 'NLUI' fallback device",
                       "value": "talk"
                   },
                   {
                       "name": "room",
                       "type": "text",
-                      "label": "Name of room with controllable devices",
+                      "label": "Name of FHEM-room with controllable devices",
                       "value": "Homebridge"
                   },
                   {
                       "name": "ignore_rooms",
                       "type": "text",
-                      "label": "Rooms to be ignored (when 'guessing' location)",
+                      "label": "FHEM-Rooms to be ignored (when trying to guess a location)",
                       "value": "Homebrigde,IT,CUL_HM,ESPEasy,_LOG"
                   }
               ]
