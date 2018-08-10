@@ -98,6 +98,7 @@ class FhemClient(object):
                 if 'room' in state['Attributes']:
                     rooms = [x.lower() for x in
                              state['Attributes']['room'].split(",")]
+                    rooms.remove(self.room.lower())
                     LOG.debug("rooms = %s" % rooms)
                     for r in rooms:
                         if (r not in ignore) and (r not in norm_name_list):
