@@ -12,10 +12,14 @@ TIMEOUT = 10
 
 
 class FhemClient(object):
-    def __init__(self, host, password, portnum, ssl=False, verify=True):
+    def __init__(self, host, user, password, portnum, room, ignore_rooms,
+                 ssl=False, verify=True):
         LOG.debug("FhemClient __init__")
         self.ssl = ssl
         self.verify = verify
+        self.room = room
+        self.ignore_rooms = ignore_rooms
+
         if host is None or host == "":
             LOG.debug("set Host to internal default 192.168.100.96")
             host = "192.168.100.96"
@@ -24,21 +28,23 @@ class FhemClient(object):
             LOG.debug("set Port to internal default 8083")
             portnum = 8083
         self.portnum = portnum
+
         if self.ssl:
-            self.url = "https://%s:%d/fhem" % (host, portnum)
+            self.url = "https://"
         else:
-            self.url = "http://%s:%d/fhem" % (host, portnum)
-        self.csrf_ts = 0 # on init force update of csrf-token
-        self.csrf = "" #self._get_csrf()
+            self.url = "http://"
+        if user != "" and password != "":
+            self.url += "{}:{}@".format(user, password)
+        self.url += ("%s:%d/fhem" % (host, portnum))
+
+        self.csrf_ts = 0  # on init force update of csrf-token
+        self.csrf = ""
 
         LOG.debug("csrf = %s" % self.csrf)
         self.headers = {
         #    'x-ha-access': password,
             'Content-Type': 'application/json'
         }
-        self.room = "Homebridge" #TODO settings
-        self.ignore_rooms = "IT,CUL_HM,ESPEasy,_LOG,Homebridge" #TODO settings
-
 
     def __get_csrf(self):
         # retrieve new csrf-token when older than 60 seconds
@@ -70,7 +76,7 @@ class FhemClient(object):
     def _normalize(self, name):
         s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
         s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-        return s2.replace("_"," ").replace("-"," ").replace(".", " ")
+        return s2.replace("_", " ").replace("-", " ").replace(".", " ")
 
     def find_entity(self, entity, types):
         json_data = self._get_state()
@@ -92,7 +98,8 @@ class FhemClient(object):
                 ignore = self.ignore_rooms.split(",")
                 if 'room' in state['Attributes']:
                     for r in state['Attributes']['room'].split(","):
-                        if (r not in ignore) and (r.lower() not in norm_name_list):
+                        if (r not in ignore) and \
+                            (r.lower() not in norm_name_list):
                             room += (" " + r)
 
                 norm_name += self._normalize(room)
@@ -104,19 +111,20 @@ class FhemClient(object):
                     alias = state['Name']
                 norm_alias = self._normalize(alias)
 
-                LOG.debug("norm_name_list = %s" % norm_name_list)
-                LOG.debug("types = %s" % types)
-                #LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
-                #LOG.debug("types-list: %s" % any(n in types for n in norm_name_list))
+                # LOG.debug("norm_name_list = %s" % norm_name_list)
+                # LOG.debug("types = %s" % types)
+                # LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
+                # LOG.debug("types-list: %s" % any(n in types for n in norm_name_list))
 
                 try:
-                    if (any(n in norm_name_list for n in types) \
-                        or (('genericDeviceType' in state['Attributes']) \
-                            and (state['Attributes']['genericDeviceType'] in types))):
+                    if (any(n in norm_name_list for n in types)
+                        or (('genericDeviceType' in state['Attributes'])
+                            and (state['Attributes']['genericDeviceType']
+                                 in types))):
                         # something like temperature outside
                         # should score on "outside temperature sensor"
                         # and repetitions should not count on my behalf
-                        if (norm_name!=norm_alias) and \
+                        if (norm_name != norm_alias) and \
                            ('alias' in state['Attributes']):
                             score = fuzz.token_sort_ratio(
                                 entity,
@@ -132,7 +140,7 @@ class FhemClient(object):
                         score = fuzz.token_sort_ratio(
                             entity,
                             norm_name)
-                        LOG.debug("%s %s" % (norm_name, score))
+                        # LOG.debug("%s %s" % (norm_name, score))
                         if score > best_score:
                             best_score = score
                             best_entity = {
@@ -177,9 +185,8 @@ class FhemClient(object):
                     return entity_attr
         return None
 
-    #def execute_service(self, domain, service, data):
     def execute_service(self, cmd, device=None, value=None):
-        #TODO add code from _get_state for SSL handling
+        # TODO add code from _get_state for SSL handling
         BASE_URL = "%s?" % self.url
         command = "cmd={}".format(cmd)
         if device is not None:
@@ -193,7 +200,7 @@ class FhemClient(object):
         return req
 
     def find_component(self, component):
-        """Check if a component is loaded at the Fhem-Server"""
+        # """Check if a component is loaded at the Fhem-Server"""
         if self.ssl:
             req = get("%s/api/components" %
                       self.url, headers=self.headers, verify=self.verify,
@@ -206,9 +213,9 @@ class FhemClient(object):
             return component in req.json()
 
     def get_device(self, name, value):
-        #retrieve a FHEM-device by name=value
-        LOG.debug("retrieve a FHEM-device by {}={}".format(name,value))
-        req = self.execute_service("jsonlist2","{}={}&XHR=1".format(name,value))
+        # retrieve a FHEM-device by name=value
+        LOG.debug("retrieve a FHEM-device by {}={}".format(name, value))
+        req = self.execute_service("jsonlist2", "{}={}&XHR=1".format(name, value))
 
         if req.status_code == 200:
             device = req.json()
@@ -216,7 +223,7 @@ class FhemClient(object):
             return None
 
         if device['totalResultsReturned']==1:
-            #LOG.debug("device found: %s" % device['Results'][0])
+            # LOG.debug("device found: %s" % device['Results'][0])
             return device['Results'][0]
         else:
             return None

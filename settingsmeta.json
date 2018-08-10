@@ -13,6 +13,12 @@
                       "value": ""
                   },
                   {
+                      "name": "username",
+                      "type": "text",
+                      "label": "User name",
+                      "value": ""
+                  },
+                  {
                       "name": "password",
                       "type": "password",
                       "label": "Password",
@@ -27,19 +33,31 @@
               ]
           },
           {
-              "name": "Fallback",
+              "name": "FHEM",
               "fields": [
                   {
                       "name": "enable_fallback",
                       "type": "checkbox",
-                      "label": "Enable conversation component as fallback",
+                      "label": "Enable 'NLUI' device as fallback",
                       "value": "true"
                   },
                   {
                       "name": "fallback_device_name",
                       "type": "text",
                       "label": "Name of fallback device",
-                      "value": ""
+                      "value": "talk"
+                  },
+                  {
+                      "name": "room",
+                      "type": "text",
+                      "label": "Name of room with controllable devices",
+                      "value": "Homebridge"
+                  },
+                  {
+                      "name": "ignore_rooms",
+                      "type": "text",
+                      "label": "Rooms to be ignored (when 'guessing' location)",
+                      "value": "Homebrigde,IT,CUL_HM,ESPEasy,_LOG"
                   }
               ]
           },

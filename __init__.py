@@ -1,6 +1,6 @@
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import FallbackSkill
-from mycroft.util.log import getLogger, LOG
+from mycroft.util.log import LOG
 
 from os.path import dirname, join
 from requests.exceptions import ConnectionError
@@ -8,7 +8,6 @@ from requests.exceptions import ConnectionError
 from .fhem_client import FhemClient
 
 __author__ = 'domcross, robconnolly, btotharye, nielstron'
-LOGGER = getLogger(__name__)
 
 # Timeout time for requests
 TIMEOUT = 10
@@ -35,32 +34,37 @@ class FhemSkill(FallbackSkill):
                 portnumber = 0
             self.fhem = FhemClient(
                 self.settings.get('host'),
+                self.settings.get('user'),
                 self.settings.get('password'),
                 portnumber,
+                self.settings.get('room'),
+                self.settings.get('ignore_rooms'),
                 self.settings.get('ssl') == 'true',
                 self.settings.get('verify') == 'true'
             )
             if self.fhem:
                 # Check if natural language control  is loaded at fhem-server
                 # and activate fallback accordingly
-                LOG.debug("fallback_device_name %s" % self.settings.get('fallback_device_name'))
+                LOG.debug("fallback_device_name %s" %
+                          self.settings.get('fallback_device_name'))
                 if self.settings.get('enable_fallback') == 'true' and \
                     self.settings.get('fallback_device_name') is not None:
                     fallback_device = self.fhem.get_device("NAME",
                                     self.settings.get('fallback_device_name'))
                     if fallback_device:
                         self.fallback_device_name = fallback_device['Name']
-                        self.fallback_device_type = fallback_device['Internals']['TYPE']
-                        if fallback_device['Internals']['TYPE'] == "Talk2Fhem":
-                            self.enable_fallback = True #currently only T2F
-                        else:
+                        self.fallback_device_type = \
+                            fallback_device['Internals']['TYPE']
+                        if self.fallback_device_type in ["Talk2Fhem", "TEERKO"]:
                             self.enable_fallback = True
+                        else:
+                            self.enable_fallback = False
                 else:
                     self.enable_fallback = False
                 LOG.debug('fhem-fallback enabled: %s' % self.enable_fallback)
 
     def _force_setup(self):
-        LOGGER.debug('Creating a new Fhem-Client')
+        LOG.debug('Creating a new Fhem-Client')
         self._setup(True)
 
     def initialize(self):
@@ -128,12 +132,12 @@ class FhemSkill(FallbackSkill):
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return
-        LOGGER.debug("Starting Switch Intent")
+        LOG.debug("Starting Switch Intent")
         entity = message.data["Entity"]
         action = message.data["Action"]
         allowed_types = ['light', 'switch', 'outlet']
-        LOGGER.debug("Entity: %s" % entity)
-        LOGGER.debug("Action: %s" % action)
+        LOG.debug("Entity: %s" % entity)
+        LOG.debug("Action: %s" % action)
         # TODO if entity is 'all', 'any' or 'every' turn on
         # every single entity not the whole group
         try:
@@ -144,36 +148,37 @@ class FhemSkill(FallbackSkill):
         if fhem_entity is None:
             self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
             return
-        LOGGER.debug("Entity State: %s" % fhem_entity['state'])
-        fhem_data = {'entity_id': fhem_entity['id']}
+        LOG.debug("Entity State: %s" % fhem_entity['state'])
+        # fhem_data = {'entity_id': fhem_entity['id']}
 
         # IDEA: set context for 'turn it off' again or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
 
-        #keep original actioname for speak_dialog
-        #when device already is in desiredstate
+        # keep original actioname for speak_dialog
+        # when device already is in desiredstate
         original_action = action
         if self.language.lower().startswith("de"):
             if (action == 'ein') or (action == 'an'):
                 action = 'on'
             elif action == 'aus':
                 action = 'off'
-        LOGGER.debug("- action: %s" % action)
-        LOGGER.debug("- state: %s" % fhem_entity['state']['Value'])
+        LOG.debug("- action: %s" % action)
+        LOG.debug("- state: %s" % fhem_entity['state']['Value'])
         if fhem_entity['state']['Value'] == action:
-            LOGGER.debug("Entity in requested state")
+            LOG.debug("Entity in requested state")
             self.speak_dialog('fhem.device.already', data={
-                "dev_name": fhem_entity['dev_name'], 'action': original_action})
+                'dev_name': fhem_entity['dev_name'],
+                'action': original_action})
         elif action == "toggle":
             if(fhem_entity['state']['Value'] == 'off'):
                 action = 'on'
             else:
                 action = 'off'
-            LOGGER.debug("toggled action: %s" % action)
+            LOG.debug("toggled action: %s" % action)
             self.fhem.execute_service("set", fhem_entity['id'], action)
             self.speak_dialog('fhem.device.%s' % action, data=fhem_entity)
         elif action in ["on", "off"]:
-            LOGGER.debug("action: on/off")
+            LOG.debug("action: on/off")
             self.speak_dialog('fhem.device.%s' % action, data=fhem_entity)
             self.fhem.execute_service("set", fhem_entity['id'], action)
         else:
@@ -181,7 +186,7 @@ class FhemSkill(FallbackSkill):
             return
 
     def handle_light_set_intent(self, message):
-        #TODO not supported yet
+        # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
         return
         #
@@ -190,7 +195,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
-        allowed_types = ['light'] #TODO
+        allowed_types = ['light'] # TODO
         try:
             brightness_req = float(message.data["BrightnessValue"])
             if brightness_req > 100 or brightness_req < 0:
@@ -199,9 +204,9 @@ class FhemSkill(FallbackSkill):
             brightness_req = 10.0
         brightness_value = int(brightness_req / 100 * 255)
         brightness_percentage = int(brightness_req)
-        LOGGER.debug("Entity: %s" % entity)
-        LOGGER.debug("Brightness Value: %s" % brightness_value)
-        LOGGER.debug("Brightness Percent: %s" % brightness_percentage)
+        LOG.debug("Entity: %s" % entity)
+        LOG.debug("Brightness Value: %s" % brightness_value)
+        LOG.debug("Brightness Percent: %s" % brightness_percentage)
         try:
             fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
@@ -228,7 +233,7 @@ class FhemSkill(FallbackSkill):
             return
 
     def handle_light_adjust_intent(self, message):
-        #TODO not supported yet
+        # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
         return
         #
@@ -247,8 +252,8 @@ class FhemSkill(FallbackSkill):
             brightness_req = 10.0
         brightness_value = int(brightness_req / 100 * 255)
         # brightness_percentage = int(brightness_req) # debating use
-        LOGGER.debug("Entity: %s" % entity)
-        LOGGER.debug("Brightness Value: %s" % brightness_value)
+        LOG.debug("Entity: %s" % entity)
+        LOG.debug("Brightness Value: %s" % brightness_value)
         try:
             fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
@@ -284,9 +289,7 @@ class FhemSkill(FallbackSkill):
                         fhem_data['brightness'] = 10
                     else:
                         fhem_data['brightness'] -= brightness_value
-                    self.fhem.execute_service("fhem",
-                                            "turn_on",
-                                            fhem_data)
+                    self.fhem.execute_service("fhem", "turn_on", fhem_data)
                     fhem_data['dev_name'] = fhem_entity['dev_name']
                     self.speak_dialog('fhem.brightness.decreased',
                                       data=fhem_data)
@@ -308,9 +311,7 @@ class FhemSkill(FallbackSkill):
                         fhem_data['brightness'] = 255
                     else:
                         fhem_data['brightness'] += brightness_value
-                    self.fhem.execute_service("fhem",
-                                            "turn_on",
-                                            fhem_data)
+                    self.fhem.execute_service("fhem", "turn_on", fhem_data)
                     fhem_data['dev_name'] = fhem_entity['dev_name']
                     self.speak_dialog('fhem.brightness.increased',
                                       data=fhem_data)
@@ -319,7 +320,7 @@ class FhemSkill(FallbackSkill):
             return
 
     def handle_automation_intent(self, message):
-        #TODO not supported yet
+        # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
         return
         #
@@ -328,8 +329,8 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
-        allowed_types = ['automation', 'scene', 'script'] #TODO
-        LOGGER.debug("Entity: %s" % entity)
+        allowed_types = ['automation', 'scene', 'script'] # TODO
+        LOG.debug("Entity: %s" % entity)
         # also handle scene and script requests
         try:
             fhem_entity = self.fhem.find_entity(entity, allowed_types)
@@ -345,7 +346,7 @@ class FhemSkill(FallbackSkill):
         # IDEA: set context for 'turn it off again' or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
 
-        LOGGER.debug("Triggered automation/scene/script: {}".format(fhem_data))
+        LOG.debug("Triggered automation/scene/script: {}".format(fhem_data))
         if "automation" in fhem_entity['id']:
             self.fhem.execute_service('automation', 'trigger', fhem_data)
             self.speak_dialog('fhem.automation.trigger',
@@ -353,13 +354,11 @@ class FhemSkill(FallbackSkill):
         elif "script" in fhem_entity['id']:
             self.speak_dialog('fhem.automation.trigger',
                               data={"dev_name": fhem_entity['dev_name']})
-            self.fhem.execute_service("fhem", "turn_on",
-                                    data=fhem_data)
+            self.fhem.execute_service("fhem", "turn_on", data=fhem_data)
         elif "scene" in fhem_entity['id']:
             self.speak_dialog('fhem.device.on',
                               data=fhem_entity)
-            self.fhem.execute_service("fhem", "turn_on",
-                                    data=fhem_data)
+            self.fhem.execute_service("fhem", "turn_on", data=fhem_data)
 
     def handle_sensor_intent(self, message):
         self._setup()
@@ -368,8 +367,8 @@ class FhemSkill(FallbackSkill):
             return
 
         entity = message.data["Entity"]
-        allowed_types = ['sensor','thermometer'] #TODO
-        LOGGER.debug("Entity: %s" % entity)
+        allowed_types = ['sensor', 'thermometer']  # TODO
+        LOG.debug("Entity: %s" % entity)
         try:
             fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
@@ -382,24 +381,25 @@ class FhemSkill(FallbackSkill):
 
         entity = fhem_entity['id']
         sensor_name = fhem_entity['dev_name']
-        sensor_state = "" #fhem_entity['state']['Value']
+        sensor_state = ""
         sensor_unit = ""
 
         tokens = fhem_entity['state']['Value'].split(" ")
-        for t in range(0,len(tokens)):
-            tok = tokens[t].lower().replace(":","")
-            #LOG.debug("tok = %s" % tok)
-            if tok in ['t','temp','temperatur','temperature']:
+        for t in range(0, len(tokens)):
+            tok = tokens[t].lower().replace(":", "")
+            # LOG.debug("tok = %s" % tok)
+            if tok in ['t', 'temp', 'temperatur', 'temperature']:
                 sensor_state += self.__translate("sensor.temperature")
-            elif tok in ['h','hum','humidity']:
+            elif tok in ['h', 'hum', 'humidity']:
                 sensor_state += self.__translate("sensor.humidity")
-            elif tok in ['p','pamb','press','pressure']:
+            elif tok in ['p', 'pamb', 'press', 'pressure']:
                 sensor_state += self.__translate("sensor.pressure")
             else:
                 sensor_state += tokens[t]
             sensor_state += " "
 
-        LOG.debug("fhem_entity['state']['Value']: %s" % fhem_entity['state']['Value'])
+        LOG.debug("fhem_entity['state']['Value']: %s" %
+                  fhem_entity['state']['Value'])
         LOG.debug("sensor_state: %s" % sensor_state)
         self.speak_dialog('fhem.sensor', data={
              "dev_name": sensor_name,
@@ -450,7 +450,7 @@ class FhemSkill(FallbackSkill):
     # - overlapping command for directions modules
     # - (e.g. "How far is x from y?")
     def handle_tracker_intent(self, message):
-        #TODO not supported yet
+        # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
         return
         #
@@ -459,16 +459,15 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
-        allowed_types = ['device_tracker'] #TODO
-        LOGGER.debug("Entity: %s" % entity)
+        allowed_types = ['device_tracker']  # TODO
+        LOG.debug("Entity: %s" % entity)
         try:
             fhem_entity = self.fhem.find_entity(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
         if fhem_entity is None:
-            self.speak_dialog('fhem.device.unknown', data={
-                              "dev_name": entity})
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
             return
 
         # IDEA: set context for 'locate it again' or similar
@@ -514,10 +513,10 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.offline')
             return False
 
-        result = self.fhem.get_device("NAME",self.fallback_device_name)
-        #LOG.debug("result: %s" % result)
+        result = self.fhem.get_device("NAME", self.fallback_device_name)
+        # LOG.debug("result: %s" % result)
 
-        if not result: # or result['Readings']['status']['Value'] == 'err':
+        if not result:  # or result['Readings']['status']['Value'] == 'err':
             LOG.debug("no result")
             return False
 
@@ -562,7 +561,7 @@ class FhemSkill(FallbackSkill):
         try:
             return self.dialog_renderer.render(term, data)
         except BaseException:
-            #no dialog at all (e.g. unsupported language or unknown term
+            # no dialog at all (e.g. unsupported language or unknown term
             return term
 
 def create_skill():
