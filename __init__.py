@@ -141,7 +141,7 @@ class FhemSkill(FallbackSkill):
         # TODO if entity is 'all', 'any' or 'every' turn on
         # every single entity not the whole group
         try:
-            fhem_entity = self.fhem.find_entity(entity, allowed_types)
+            fhem_entity = self.fhem.finde_device(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -208,7 +208,7 @@ class FhemSkill(FallbackSkill):
         LOG.debug("Brightness Value: %s" % brightness_value)
         LOG.debug("Brightness Percent: %s" % brightness_percentage)
         try:
-            fhem_entity = self.fhem.find_entity(entity, allowed_types)
+            fhem_entity = self.fhem.finde_device(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -255,7 +255,7 @@ class FhemSkill(FallbackSkill):
         LOG.debug("Entity: %s" % entity)
         LOG.debug("Brightness Value: %s" % brightness_value)
         try:
-            fhem_entity = self.fhem.find_entity(entity, allowed_types)
+            fhem_entity = self.fhem.finde_device(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -333,7 +333,7 @@ class FhemSkill(FallbackSkill):
         LOG.debug("Entity: %s" % entity)
         # also handle scene and script requests
         try:
-            fhem_entity = self.fhem.find_entity(entity, allowed_types)
+            fhem_entity = self.fhem.finde_device(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -370,7 +370,7 @@ class FhemSkill(FallbackSkill):
         allowed_types = ['sensor', 'thermometer']  # TODO
         LOG.debug("Entity: %s" % entity)
         try:
-            fhem_entity = self.fhem.find_entity(entity, allowed_types)
+            fhem_entity = self.fhem.finde_device(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -462,7 +462,7 @@ class FhemSkill(FallbackSkill):
         allowed_types = ['device_tracker']  # TODO
         LOG.debug("Entity: %s" % entity)
         try:
-            fhem_entity = self.fhem.find_entity(entity, allowed_types)
+            fhem_entity = self.fhem.finde_device(entity, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return

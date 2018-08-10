@@ -41,10 +41,7 @@ class FhemClient(object):
         self.csrf = ""
 
         LOG.debug("csrf = %s" % self.csrf)
-        self.headers = {
-        #    'x-ha-access': password,
-            'Content-Type': 'application/json'
-        }
+        self.headers = {'Content-Type': 'application/json'}
 
     def __get_csrf(self):
         # retrieve new csrf-token when older than 60 seconds
@@ -53,8 +50,8 @@ class FhemClient(object):
             self.csrf_ts = time.time()
         return self.csrf
 
-    def _get_state(self):
-        # devices auslesen
+    def _get_devices(self):
+        # get json list of all controllabe devices
         command = "cmd=jsonlist2%20room={}&XHR=1".format(self.room)
         if self.ssl:
             req = get("%s?%s&fwcsrf=%s" %
@@ -78,8 +75,8 @@ class FhemClient(object):
         s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
         return s2.replace("_", " ").replace("-", " ").replace(".", " ")
 
-    def find_entity(self, entity, types):
-        json_data = self._get_state()
+    def find_device(self, entity, types):
+        json_data = self._get_devices()
 
         # require a score above 50%
         best_score = 50
@@ -95,11 +92,12 @@ class FhemClient(object):
 
                 # add room to name
                 room = ""
-                ignore = self.ignore_rooms.split(",")
+                ignore = [x.lower() for x in self.ignore_rooms.split(",")]
                 if 'room' in state['Attributes']:
-                    for r in state['Attributes']['room'].split(","):
-                        if (r not in ignore) and \
-                            (r.lower() not in norm_name_list):
+                    rooms = [x.lower() for x in
+                             state['Attributes']['room'].split(",")]
+                    for r in rooms:
+                        if (r not in ignore) and (r not in norm_name_list):
                             room += (" " + r)
 
                 norm_name += self._normalize(room)
@@ -114,7 +112,6 @@ class FhemClient(object):
                 # LOG.debug("norm_name_list = %s" % norm_name_list)
                 # LOG.debug("types = %s" % types)
                 # LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
-                # LOG.debug("types-list: %s" % any(n in types for n in norm_name_list))
 
                 try:
                     if (any(n in norm_name_list for n in types)
@@ -158,7 +155,7 @@ class FhemClient(object):
     #
 
     def find_entity_attr(self, entity):
-        json_data = self._get_state()
+        json_data = self._get_devices()
 
         if json_data:
             for attr in json_data:
