@@ -87,6 +87,7 @@ class FhemClient(object):
 
         if json_data:
             for state in json_data["Results"]:
+                LOG.debug("==================================================")
                 norm_name = self._normalize(state['Name'])
                 norm_name_list = norm_name.split(" ")
                 LOG.debug("norm_name_list = %s" % norm_name_list)
@@ -100,6 +101,7 @@ class FhemClient(object):
                     LOG.debug("rooms = %s" % rooms)
                     for r in rooms:
                         if (r not in ignore) and (r not in norm_name_list):
+                            LOG.debug("adding r = %s" % r)
                             room += (" " + r)
 
                 norm_name += self._normalize(room)
