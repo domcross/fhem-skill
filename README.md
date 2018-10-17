@@ -25,16 +25,15 @@ This skill can be installed via `msm install https://github.com/domcross/fhem-sk
 This skill utilizes the skillsettings.json file which allows you to configure this skill via home.mycroft.ai after a few minutes of having the skill installed you should see something like below in the https://home.mycroft.ai/#/skill location:
 
 Fill this out with your appropriate Fhem information and hit save.
+(Note: User name, password and SSL options are currently not supported.)
 
 ![Screenshot](screenshot.JPG?raw=true)
 
 ## Usage
 
 Say something like "Hey Mycroft, turn on living room lights". Currently available commands
-are "turn on" and "turn off". Matching to Fhem entity names is done by scanning
-the Fhem API and looking for the closest matching alias name. The matching is fuzzy (thanks
-to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft
-didn't quite get what you said.  I have further expanded this to also look at groups as well as lights.  This way if you say turn on the office light, it will do the group and not just 1 light, this can easily be modified to your preference by just removing group's from the fuzzy logic in the code.
+are "turn (on|off) <device>" and "status <device>". Matching to Fhem entity names is done by scanning the Fhem API and looking for the closest matching alias name. The matching is fuzzy (thanks to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft didn't quite get what you said.  
+I have further expanded this to also look at groups as well as lights.  This way if you say turn on the office light, it will do the group and not just 1 light, this can easily be modified to your preference by just removing group's from the fuzzy logic in the code.
 
 ## Supported Phrases/Entities
 Currently the phrases are:
@@ -46,8 +45,6 @@ Currently the phrases are:
 * Hey Mycroft, locate/where brian (Brian is a device tracker object)
 * Hey Mycroft, what is the current living room temp
 * Hey Mycroft, what is the current season
-
-
 
 ## TODO
  * Script intents processing
