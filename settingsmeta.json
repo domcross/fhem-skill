@@ -1,6 +1,6 @@
 {
   "identifier": "FhemSkill",
-  "name": "Fhem",
+  "name": "FHEM home automation",
   "skillMetadata": {
       "sections": [
           {
@@ -13,6 +13,12 @@
                       "value": ""
                   },
                   {
+                      "name": "username",
+                      "type": "text",
+                      "label": "User name",
+                      "value": ""
+                  },
+                  {
                       "name": "password",
                       "type": "password",
                       "label": "Password",
@@ -22,7 +28,36 @@
                       "name": "portnum",
                       "type": "Number",
                       "label": "Port number",
-                      "value": "8123"
+                      "value": "8083"
+                  }
+              ]
+          },
+          {
+              "name": "FHEM",
+              "fields": [
+                  {
+                      "name": "enable_fallback",
+                      "type": "checkbox",
+                      "label": "Enable 'NLUI' device as fallback",
+                      "value": "true"
+                  },
+                  {
+                      "name": "fallback_device_name",
+                      "type": "text",
+                      "label": "Name of 'NLUI' fallback device",
+                      "value": "talk"
+                  },
+                  {
+                      "name": "room",
+                      "type": "text",
+                      "label": "Name of FHEM-room with controllable devices",
+                      "value": "Homebridge"
+                  },
+                  {
+                      "name": "ignore_rooms",
+                      "type": "text",
+                      "label": "FHEM-Rooms to be ignored (when trying to guess a location)",
+                      "value": "Homebrigde,IT,CUL_HM,ESPEasy,_LOG"
                   }
               ]
           },
@@ -39,13 +74,7 @@
                       "name": "verify",
                       "type": "checkbox",
                       "label": "Verify SSL Certificate",
-                      "value": "true"
-                  },
-                  {
-                      "name": "enable_fallback",
-                      "type": "checkbox",
-                      "label": "Enable conversation component as fallback",
-                      "value": "true"
+                      "value": "false"
                   }
               ]
           }
