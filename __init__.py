@@ -1,4 +1,5 @@
 from adapt.intent import IntentBuilder
+from mycroft import MycroftSkill, intent_handler, AdaptIntent, intent_file_handler
 from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
 
@@ -43,7 +44,7 @@ class FhemSkill(FallbackSkill):
                 self.settings.get('verify') == 'true'
             )
             if self.fhem:
-                # Check if natural language control  is loaded at fhem-server
+                # Check if natural language control is loaded at fhem-server
                 # and activate fallback accordingly
                 LOG.debug("fallback_device_name %s" %
                           self.settings.get('fallback_device_name'))
@@ -68,15 +69,9 @@ class FhemSkill(FallbackSkill):
         self._setup(True)
 
     def initialize(self):
-        self.language = self.config_core.get('lang')
-        self.load_vocab_files(join(dirname(__file__), 'vocab', self.lang))
-        self.load_regex_files(join(dirname(__file__), 'regex', self.lang))
-        self.__build_switch_intent()
-        self.__build_light_set_intent()
-        self.__build_light_adjust_intent()
-        self.__build_automation_intent()
-        self.__build_sensor_intent()
-        self.__build_tracker_intent()
+        #self.load_vocab_files(join(dirname(__file__), 'vocab', self.lang))
+        #self.load_regex_files(join(dirname(__file__), 'regex', self.lang))
+
         # Needs higher priority than general fallback skills
         self.register_fallback(self.handle_fallback, 2)
         # Check and then monitor for credential changes
@@ -91,42 +86,8 @@ class FhemSkill(FallbackSkill):
             except Exception:
                 pass
 
-    def __build_switch_intent(self):
-        intent = IntentBuilder("switchIntent").require("SwitchActionKeyword") \
-            .require("Action").require("Entity").build()
-        self.register_intent(intent, self.handle_switch_intent)
-
-    def __build_light_set_intent(self):
-        intent = IntentBuilder("LightSetBrightnessIntent") \
-            .optionally("LightsKeyword").require("SetVerb") \
-            .require("Entity").require("BrightnessValue").build()
-        self.register_intent(intent, self.handle_light_set_intent)
-
-    def __build_light_adjust_intent(self):
-        intent = IntentBuilder("LightAdjBrightnessIntent") \
-            .optionally("LightsKeyword") \
-            .one_of("IncreaseVerb", "DecreaseVerb", "LightBrightenVerb",
-                    "LightDimVerb") \
-            .require("Entity").optionally("BrightnessValue").build()
-        self.register_intent(intent, self.handle_light_adjust_intent)
-
-    def __build_automation_intent(self):
-        intent = IntentBuilder("AutomationIntent").require(
-            "AutomationActionKeyword").require("Entity").build()
-        self.register_intent(intent, self.handle_automation_intent)
-
-    def __build_sensor_intent(self):
-        intent = IntentBuilder("SensorIntent").require(
-            "SensorStatusKeyword").require("Entity").build()
-        # TODO - Sensors - Locks, Temperature, etc
-        self.register_intent(intent, self.handle_sensor_intent)
-
-    def __build_tracker_intent(self):
-        intent = IntentBuilder("TrackerIntent").require(
-            "DeviceTrackerKeyword").require("Entity").build()
-        # TODO - Identity location, proximity
-        self.register_intent(intent, self.handle_tracker_intent)
-
+    @intent_handler(AdaptIntent().require("SwitchActionKeyword")
+                    .require("Action").require("Entity"))
     def handle_switch_intent(self, message):
         self._setup()
         if self.fhem is None:
@@ -157,7 +118,7 @@ class FhemSkill(FallbackSkill):
         # keep original actioname for speak_dialog
         # when device already is in desiredstate
         original_action = action
-        if self.language.lower().startswith("de"):
+        if self.lang.lower().startswith("de"):
             if (action == 'ein') or (action == 'an'):
                 action = 'on'
             elif action == 'aus':
@@ -185,6 +146,9 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.sorry')
             return
 
+    @intent_handler(AdaptIntent().optionally("LightsKeyword")
+                    .require("SetVerb").require("Entity")
+                    .require("BrightnessValue"))
     def handle_light_set_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -195,7 +159,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         entity = message.data["Entity"]
-        allowed_types = ['light'] # TODO
+        allowed_types = ['light']  # TODO
         try:
             brightness_req = float(message.data["BrightnessValue"])
             if brightness_req > 100 or brightness_req < 0:
@@ -232,6 +196,10 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.sorry')
             return
 
+    @intent_handler(AdaptIntent().optionally("LightsKeyword")
+                    .one_of("IncreaseVerb", "DecreaseVerb",
+                            "LightBrightenVerb", "LightDimVerb")
+                    .require("Entity").optionally("BrightnessValue"))
     def handle_light_adjust_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -267,7 +235,7 @@ class FhemSkill(FallbackSkill):
         # IDEA: set context for 'turn it off again' or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
 
-        # if self.language == 'de':
+        # if self.lang == 'de':
         #    if action == 'runter' or action == 'dunkler':
         #        action = 'dim'
         #    elif action == 'heller' or action == 'hell':
@@ -319,6 +287,8 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.sorry')
             return
 
+    @intent_handler(AdaptIntent().require("AutomationActionKeyword")
+                    .require("Entity"))
     def handle_automation_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -360,6 +330,8 @@ class FhemSkill(FallbackSkill):
                               data=fhem_entity)
             self.fhem.execute_service("fhem", "turn_on", data=fhem_data)
 
+    @intent_handler(AdaptIntent().require("SensorStatusKeyword")
+                    .require("Entity"))
     def handle_sensor_intent(self, message):
         self._setup()
         if self.fhem is None:
@@ -449,6 +421,8 @@ class FhemSkill(FallbackSkill):
     # Proximity might be an issue
     # - overlapping command for directions modules
     # - (e.g. "How far is x from y?")
+    @intent_handler(AdaptIntent().require("DeviceTrackerKeyword")
+                    .require("Entity"))
     def handle_tracker_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -480,6 +454,51 @@ class FhemSkill(FallbackSkill):
                           data={'dev_name': dev_name,
                                 'location': dev_location})
 
+    @intent_file_handler('set.climate.intent')
+    def handle_set_thermostat_intent(self, message):
+        self._setup()
+        if self.fhem is None:
+            self.speak_dialog('fhem.error.setup')
+            return
+        LOG.debug("Starting Thermostat Intent")
+
+        entity = message.data["entity"]
+        LOG.debug("Entity: %s" % entity)
+        LOG.debug("This is the message data: %s" % message.data)
+        temperature = message.data["temp"]
+        LOG.debug("Temperature: %s" % temperature)
+
+        allowed_types = ['thermostat']
+
+        try:
+            fhem_entity = self.fhem.find_device(entity, allowed_types)
+        except ConnectionError:
+            self.speak_dialog('fhem.error.offline')
+            return
+        if fhem_entity is None:
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
+            return
+        LOG.debug("Entity State: %s" % fhem_entity['state'])
+
+        # s
+        entity_id = fhem_entity['id']
+        clima_entity = "%s_Clima" % entity_id
+        #climate_attr = self.ha.find_entity_attr(fhem_entity['id'])
+        action = "desired-temp %s" % temperature
+        self.fhem.execute_service("set", clima_entity , action)
+        self.speak_dialog('fhem.set.thermostat',
+                          data={
+                              "dev_name": entity,
+                              "value": temperature,
+                              "unit": "Celsius"})
+        # self.ha.execute_service("climate", "set_temperature",
+        #                         data=climate_data)
+        # self.speak_dialog('fhem.set.thermostat',
+        #                   data={
+        #                       "dev_name": climate_attr['name'],
+        #                       "value": temperature,
+        #                       "unit": climate_attr['unit_measure']})
+
     def handle_fallback(self, message):
         LOG.debug("entering handle_fallback with utterance '%s'" %
                   message.data.get('utterance'))
@@ -503,8 +522,8 @@ class FhemSkill(FallbackSkill):
             elif self.fallback_device_type == "Talk2Fhem":
                 LOG.debug("fallback device type Talk2Fhem")
                 req = self.fhem.execute_service("set",
-                        self.fallback_device_name,
-                        message.data.get('utterance'))
+                                                self.fallback_device_name,
+                                                message.data.get('utterance'))
             else:
                 LOG.debug("fallback device type UNKNOWN")
                 return False
