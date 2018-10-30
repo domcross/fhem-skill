@@ -28,7 +28,7 @@
                       "name": "portnum",
                       "type": "Number",
                       "label": "Port number",
-                      "value": "8083"
+                      "value": ""
                   }
               ]
           },
