@@ -13,12 +13,11 @@ __author__ = 'domcross, robconnolly, btotharye, nielstron'
 # Timeout time for requests
 TIMEOUT = 10
 
-
 class FhemSkill(FallbackSkill):
 
     def __init__(self):
-        LOG.debug("__init__")
         super(FhemSkill, self).__init__(name="FhemSkill")
+        LOG.info("__init__")
         self.fhem = None
         self.enable_fallback = False
 
@@ -33,9 +32,10 @@ class FhemSkill(FallbackSkill):
             except ValueError:
                 # String might be some rubbish (like '')
                 portnumber = 0
+
             self.fhem = FhemClient(
                 self.settings.get('host'),
-                self.settings.get('user'),
+                self.settings.get('username'),
                 self.settings.get('password'),
                 portnumber,
                 self.settings.get('room'),
@@ -480,24 +480,18 @@ class FhemSkill(FallbackSkill):
             return
         LOG.debug("Entity State: %s" % fhem_entity['state'])
 
-        # s
         entity_id = fhem_entity['id']
+        # TODO this works for Homematic only
         clima_entity = "%s_Clima" % entity_id
-        #climate_attr = self.ha.find_entity_attr(fhem_entity['id'])
+        unit = ""
         action = "desired-temp %s" % temperature
-        self.fhem.execute_service("set", clima_entity , action)
+
+        self.fhem.execute_service("set", clima_entity, action)
         self.speak_dialog('fhem.set.thermostat',
                           data={
                               "dev_name": entity,
                               "value": temperature,
-                              "unit": "Celsius"})
-        # self.ha.execute_service("climate", "set_temperature",
-        #                         data=climate_data)
-        # self.speak_dialog('fhem.set.thermostat',
-        #                   data={
-        #                       "dev_name": climate_attr['name'],
-        #                       "value": temperature,
-        #                       "unit": climate_attr['unit_measure']})
+                              "unit": unit})
 
     def handle_fallback(self, message):
         LOG.debug("entering handle_fallback with utterance '%s'" %
