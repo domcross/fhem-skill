@@ -12,7 +12,7 @@ TIMEOUT = 10
 
 
 class FhemClient(object):
-    def __init__(self, host, user, password, portnum, room, ignore_rooms,
+    def __init__(self, host, username, password, portnum, room, ignore_rooms,
                  ssl=False, verify=True):
         LOG.debug("FhemClient __init__")
         self.ssl = ssl
@@ -33,14 +33,16 @@ class FhemClient(object):
             self.url = "https://"
         else:
             self.url = "http://"
-        if user != "" and password != "":
-            self.url += "{}:{}@".format(user, password)
+        if username != "" and password != "":
+            #self.url += "{}:{}@".format(username, password)
+            self.auth = (username, password)
+        else:
+            self.auth = None
         self.url += ("%s:%d/fhem" % (host, portnum))
+        LOG.info("self.url: %s" % self.url)
 
         self.csrf_ts = 0  # on init force update of csrf-token
         self.csrf = ""
-
-        LOG.debug("csrf = %s" % self.csrf)
         self.headers = {'Content-Type': 'application/json'}
 
     def __get_csrf(self):
@@ -57,12 +59,14 @@ class FhemClient(object):
             req = get("%s?%s&fwcsrf=%s" %
                       (self.url, command, self.__get_csrf()),
                       headers=self.headers,
+                      auth=self.auth,
                       verify=self.verify,
                       timeout=TIMEOUT)
         else:
             req = get("%s?%s&fwcsrf=%s" %
                       (self.url, command, self.__get_csrf()),
                       headers=self.headers,
+                      auth=self.auth,
                       timeout=TIMEOUT)
 
         if req.status_code == 200:
@@ -82,8 +86,8 @@ class FhemClient(object):
         best_score = 50
         best_entity = None
 
-        #types = ['security','ignore','switch','outlet','light','blind','thermometer',
-        #         'thermostat','contact','garage','window','lock']
+        # types = ['security','ignore','switch','outlet','light','blind',
+        #         'thermometer','thermostat','contact','garage','window','lock']
 
         if json_data:
             for state in json_data["Results"]:
@@ -151,7 +155,7 @@ class FhemClient(object):
                                 "state": state['Readings']['state'],
                                 "best_score": best_score}
                 except KeyError:
-                    pass #print("KeyError")
+                    pass  # print("KeyError")
             LOG.debug("best entity = %s" % best_entity)
             return best_entity
 
@@ -198,7 +202,7 @@ class FhemClient(object):
         cmd_req = BASE_URL + command + "&fwcsrf=" + self.__get_csrf()
         LOG.debug("cmd_req = %s" % cmd_req)
 
-        req = get(cmd_req)
+        req = get(cmd_req, auth=self.auth)
         return req
 
     def find_component(self, component):
@@ -206,9 +210,11 @@ class FhemClient(object):
         if self.ssl:
             req = get("%s/api/components" %
                       self.url, headers=self.headers, verify=self.verify,
+                      auth=self.auth,
                       timeout=TIMEOUT)
         else:
             req = get("%s/api/components" % self.url, headers=self.headers,
+                      auth=self.auth,
                       timeout=TIMEOUT)
 
         if req.status_code == 200:
@@ -217,14 +223,15 @@ class FhemClient(object):
     def get_device(self, name, value):
         # retrieve a FHEM-device by name=value
         LOG.debug("retrieve a FHEM-device by {}={}".format(name, value))
-        req = self.execute_service("jsonlist2", "{}={}&XHR=1".format(name, value))
+        req = self.execute_service("jsonlist2",
+                                   "{}={}&XHR=1".format(name, value))
 
         if req.status_code == 200:
             device = req.json()
         else:
             return None
 
-        if device['totalResultsReturned']==1:
+        if device['totalResultsReturned'] == 1:
             # LOG.debug("device found: %s" % device['Results'][0])
             return device['Results'][0]
         else:
@@ -245,6 +252,7 @@ class FhemClient(object):
         if self.ssl:
             return post("%s/api/conversation/process" % (self.url),
                         headers=self.headers,
+                        auth=self.auth,
                         data=json.dumps(data),
                         verify=self.verify,
                         timeout=TIMEOUT
@@ -252,6 +260,7 @@ class FhemClient(object):
         else:
             return post("%s/api/conversation/process" % (self.url),
                         headers=self.headers,
+                        auth=self.auth,
                         data=json.dumps(data),
                         timeout=TIMEOUT
                         ).json()['speech']['plain']
