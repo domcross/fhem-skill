@@ -39,7 +39,7 @@ class FhemClient(object):
         else:
             self.auth = None
         self.url += ("%s:%d/fhem" % (host, portnum))
-        LOG.info("self.url: %s" % self.url)
+        LOG.debug("self.url: %s" % self.url)
 
         self.csrf_ts = 0  # on init force update of csrf-token
         self.csrf = ""

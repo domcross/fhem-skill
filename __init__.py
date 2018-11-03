@@ -69,9 +69,6 @@ class FhemSkill(FallbackSkill):
         self._setup(True)
 
     def initialize(self):
-        #self.load_vocab_files(join(dirname(__file__), 'vocab', self.lang))
-        #self.load_regex_files(join(dirname(__file__), 'regex', self.lang))
-
         # Needs higher priority than general fallback skills
         self.register_fallback(self.handle_fallback, 2)
         # Check and then monitor for credential changes
@@ -481,12 +478,59 @@ class FhemSkill(FallbackSkill):
         LOG.debug("Entity State: %s" % fhem_entity['state'])
 
         entity_id = fhem_entity['id']
-        # TODO this works for Homematic only
-        clima_entity = "%s_Clima" % entity_id
+        target_entity = entity_id
+        
+        # defaults for min/max temp and step
+        minValue = 5.0
+        maxValue = 35.0
+        minStep = 0.5
         unit = ""
-        action = "desired-temp %s" % temperature
+        cmd = ""
+        
+        # check thermostat type, derive command and min/max values
+        LOG.debug("fhem_entity: %s" % fhem_entity)
+        # for that get thermostat device
+        td = self.fhem.get_device("NAME",fhem_entity['dev_name'])
+        LOG.debug("td: %s" % td)
+        if 'desired-temp' in td['Readings']:
+            if 'FBTYPE' in td['Readings'] and \
+                td['Readings']['FBTYPE']=='Comet DECT':
+                LOG.debug("Comet DECT")
+                cmd = "desired-temp"
+                minValue=8.0
+                maxValue=28.0
+            elif td['Internals']['TYPE']=='CUL_HM':
+                LOG.debug("HM")
+                cmd = "desired-temp"
+                # test for Clima-Subdevice
+                if 'channel_04' in td['Internals']:
+                    target_entity = td['Internals']['channel_04']
+        elif 'desiredTemperature' in td['Readings']:
+            LOG.debug("MAX")
+            cmd = "desiredTemperature"
+            minValue=4.5
+            maxValue=30.5            
+        elif 'desired' in td['Readings']:
+            LOG.debug("PID20")
+            cmd = "desired"
+        else:
+            LOG.warn("FHEM device %s has unknown thermostat type" % entity_id)
+            self.speak_dialog('fhem.error.notsupported')
+            return
 
-        self.fhem.execute_service("set", clima_entity, action)
+        if (float(temperature)<minValue) or (float(temperature)>maxValue) or \
+                (float(temperature) % minStep != 0.0):
+            self.speak_dialog('fhem.thermostat.badreq',
+                          data={"minValue": minValue,
+                                "maxValue": maxValue,
+                                "minStep": minStep})
+            return
+        
+        action = "%s %s" % (cmd, temperature)
+        
+        LOG.debug("set %s %s" % (target_entity, action))
+        
+        self.fhem.execute_service("set", target_entity, action)
         self.speak_dialog('fhem.set.thermostat',
                           data={
                               "dev_name": entity,
