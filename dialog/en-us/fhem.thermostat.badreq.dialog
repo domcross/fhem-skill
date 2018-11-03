@@ -1,0 +1,2 @@
+please request a temperature level between {minValue} and {maxValue} degrees in {minSteps} steps.
+what temperature? you can choose a level from {minValue} and {maxValue} degrees in {minStep} steps.
