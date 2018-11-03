@@ -1,1 +1,0 @@
-{"portnum": "8087", "host": "192.168.100.96", "verify": false, "username": "fhem", "enable_fallback": true, "fallback_device_name": "talk", "ignore_rooms": "Homebrigde,IT,CUL_HM,ESPEasy,HOMEMODE,_LOG", "__mycroft_skill_firstrun": false, "password": "geo", "ssl": false, "room": "Homebridge"}
