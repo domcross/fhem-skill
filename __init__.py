@@ -499,6 +499,11 @@ class FhemSkill(FallbackSkill):
                 cmd = "desired-temp"
                 minValue=8.0
                 maxValue=28.0
+            elif td['Internals']['TYPE']=='FHT':
+                LOG.debug("FHT")
+                cmd = "desired-temp"
+                minValue=6.0
+                maxValue=30.0
             elif td['Internals']['TYPE']=='CUL_HM':
                 LOG.debug("HM")
                 cmd = "desired-temp"
