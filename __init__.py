@@ -490,23 +490,21 @@ class FhemSkill(FallbackSkill):
         # check thermostat type, derive command and min/max values
         LOG.debug("fhem_entity: %s" % fhem_entity)
         # for that get thermostat device
-        td = self.fhem.get_device("NAME",fhem_entity['dev_name'])
+        td = self.fhem.get_device("NAME",fhem_entity['id'])
         LOG.debug("td: %s" % td)
         if 'desired-temp' in td['Readings']:
+            cmd = "desired-temp"
             if 'FBTYPE' in td['Readings'] and \
                 td['Readings']['FBTYPE']=='Comet DECT':
                 LOG.debug("Comet DECT")
-                cmd = "desired-temp"
                 minValue=8.0
                 maxValue=28.0
             elif td['Internals']['TYPE']=='FHT':
                 LOG.debug("FHT")
-                cmd = "desired-temp"
                 minValue=6.0
                 maxValue=30.0
             elif td['Internals']['TYPE']=='CUL_HM':
                 LOG.debug("HM")
-                cmd = "desired-temp"
                 # test for Clima-Subdevice
                 if 'channel_04' in td['Internals']:
                     target_entity = td['Internals']['channel_04']
@@ -518,10 +516,39 @@ class FhemSkill(FallbackSkill):
         elif 'desired' in td['Readings']:
             LOG.debug("PID20")
             cmd = "desired"
-        else:
-            LOG.warn("FHEM device %s has unknown thermostat type" % entity_id)
+        elif 'homebridgeMapping' in td['Attributes']:
+            LOG.debug("homebridgeMapping")
+            hbm = td['Attributes']['homebridgeMapping'].split(" ")
+            for h in hbm:
+                #LOG.debug("h = %s" % h)
+                #TargetTemperature=desired-temp::desired-temp,
+                #minValue=5,maxValue=35,minStep=0.5,nocache=1
+                if h.startswith("TargetTemperature"):
+                    targettemp = (h.split("=",1)[1]).split(",")
+                    LOG.debug("targettemp = %s" % targettemp)
+                    for t in targettemp:
+                        LOG.debug("t = %s" % t)
+                        if t.startswith("desired-temp"):
+                            t2 = t.split(":")
+                            LOG.debug("t2 = %s" % t2)
+                            cmd = t2[0]
+                            if t2[1] != '':
+                                target_entity = t2[1]
+                        elif t.startswith("minValue"):
+                            minValue = float(t.split("=")[1])
+                        elif t.startswith("maxValue"):
+                            maxValue = float(t.split("=")[1])
+                        elif t.startswith("minStep"):
+                            minStep = float(t.split("=")[1])
+        
+        if cmd=="":
+            LOG.info("FHEM device %s has unknown thermostat type" % entity_id)
             self.speak_dialog('fhem.error.notsupported')
             return
+
+        LOG.debug("target_entity: %s cmd: %s" % (target_entity, cmd))
+        LOG.debug("minValue: %s maxValue: %s minStep: %s" % (minValue,maxValue,
+                    minStep))
 
         if (float(temperature)<minValue) or (float(temperature)>maxValue) or \
                 (float(temperature) % minStep != 0.0):
