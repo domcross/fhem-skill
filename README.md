@@ -1,19 +1,11 @@
 # FHEM Skill for Mycroft
 
-[![Stories in Ready](https://badge.waffle.io/btotharye/mycroft-homeassistant.svg?label=ready&title=Ready)](http://waffle.io/btotharye/mycroft-homeassistant)
-[![Build Status](https://travis-ci.org/btotharye/mycroft-homeassistant.svg?branch=master)](https://travis-ci.org/btotharye/mycroft-homeassistant)
-[![Coverage Status](https://coveralls.io/repos/github/btotharye/mycroft-homeassistant/badge.svg?branch=master)](https://coveralls.io/github/btotharye/mycroft-homeassistant?branch=master)
-[![Discord](https://img.shields.io/discord/348442860510642176.svg)](https://discord.gg/Xnn89dB)
-
-
-
 based off the original code from https://github.com/btotharye/mycroft-homeassistant for Home Assistant, I have spun off my own version for Fhem.
 
 Make sure you have your Fhem settings filled out on home.mycroft.ai.
 
 This is a skill to add [Fhem](https://fhem.de) support to
-[Mycroft](https://mycroft.ai). Currently is support turning on and off several
-entity types (`light`, `switch`) and get status information ('sensor','thermometer')
+[Mycroft](https://mycroft.ai). Currently is support turning on and off several entity types (`light`, `switch`, `outlet`), changing temperature (`thermometer`) and get status information ('sensor','thermometer').
 
 ## Installation
 Before installation ensure you have python-dev package installed for your OS.  For debian this would be `apt-get install python-dev` it is required for the levenstein package.
@@ -25,7 +17,7 @@ This skill can be installed via `msm install https://github.com/domcross/fhem-sk
 This skill utilizes the skillsettings.json file which allows you to configure this skill via home.mycroft.ai after a few minutes of having the skill installed you should see something like below in the https://home.mycroft.ai/#/skill location:
 
 Fill this out with your appropriate Fhem information and hit save.
-(Note: User name, password and SSL options are currently not supported.)
+(Note: SSL options are currently not supported.)
 
 ![Screenshot](screenshot.JPG?raw=true)
 
@@ -37,21 +29,18 @@ I have further expanded this to also look at groups as well as lights.  This way
 
 ## Supported Phrases/Entities
 Currently the phrases are:
-* Hey Mycroft, turn on office (turn on the group office)
 * Hey Mycroft, turn on office light (to turn on the light named office)
-* Hey Mycroft, activate Bedtime (Bedtime is an automation)
-* Hey Mycroft, turn on Movietime (Movietime is a scene)
 * Hey Mycroft, status of thermostat (For sensors in homeassistant)
-* Hey Mycroft, locate/where brian (Brian is a device tracker object)
 * Hey Mycroft, what is the current living room temp
-* Hey Mycroft, what is the current season
+* Hey Mycroft, set thermostat livingroom to 20 degrees
+
 
 ## TODO
  * Script intents processing
  * New intent for opening/closing cover entities
  * New intent for locking/unlocking lock entities (with added security?)
- * New intent for thermostat values, raising, etc.
  * New intent to handle multimedia/kodi
+ * New intent for tracking residents status (absent)
 
 ## In Development
 * Climate and Weather intents
@@ -66,4 +55,4 @@ All contributions welcome:
 
 ## Licence
 
-See [`LICENCE`](https://gitlab.com/robconnolly/mycroft-home-assistant/blob/master/LICENSE).
+See [`LICENCE`](https://apache.org/licenses/LICENSE-2.0).
