@@ -22,8 +22,8 @@ class FhemSkill(FallbackSkill):
         self.enable_fallback = False
 
     def _setup(self, force=False):
-        LOG.debug("_setup")
         if self.settings is not None and (force or self.fhem is None):
+            LOG.debug("_setup")
             portnumber = self.settings.get('portnum')
             try:
                 portnumber = int(portnumber)
@@ -40,29 +40,34 @@ class FhemSkill(FallbackSkill):
                 portnumber,
                 self.settings.get('room'),
                 self.settings.get('ignore_rooms'),
-                self.settings.get('ssl') == 'true',
-                self.settings.get('verify') == 'true'
+                self.settings.get('ssl') == True,
+                self.settings.get('verify') == True
             )
             if self.fhem:
                 # Check if natural language control is loaded at fhem-server
                 # and activate fallback accordingly
                 LOG.debug("fallback_device_name %s" %
                           self.settings.get('fallback_device_name'))
-                if self.settings.get('enable_fallback') == 'true' and \
+                LOG.debug("enable_fallback %s" %
+                          self.settings.get('enable_fallback'))
+                if self.settings.get('enable_fallback') == True and \
                     self.settings.get('fallback_device_name') is not None:
                     fallback_device = self.fhem.get_device("NAME",
                                     self.settings.get('fallback_device_name'))
                     if fallback_device:
                         self.fallback_device_name = fallback_device['Name']
                         self.fallback_device_type = \
-                            fallback_device['Internals']['TYPE']
-                        if self.fallback_device_type in ["Talk2Fhem", "TEERKO"]:
+                                fallback_device['Internals']['TYPE']
+                        LOG.debug("fallback_device_type is %s" % self.fallback_device_type)
+                        if self.fallback_device_type in ["Talk2Fhem","TEERKO",
+                                                        "Babble"]:
                             self.enable_fallback = True
                         else:
                             self.enable_fallback = False
                 else:
                     self.enable_fallback = False
                 LOG.debug('fhem-fallback enabled: %s' % self.enable_fallback)
+
 
     def _force_setup(self):
         LOG.debug('Creating a new Fhem-Client')
@@ -463,10 +468,9 @@ class FhemSkill(FallbackSkill):
         LOG.debug("Entity: %s" % entity)
         LOG.debug("This is the message data: %s" % message.data)
         temperature = message.data["temp"]
-        LOG.debug("Temperature: %s" % temperature)
+        LOG.debug("desired temperature from message: %s" % temperature)
 
         allowed_types = ['thermostat']
-
         try:
             fhem_entity = self.fhem.find_device(entity, allowed_types)
         except ConnectionError:
@@ -479,14 +483,14 @@ class FhemSkill(FallbackSkill):
 
         entity_id = fhem_entity['id']
         target_entity = entity_id
-        
+
         # defaults for min/max temp and step
         minValue = 5.0
         maxValue = 35.0
         minStep = 0.5
         unit = ""
         cmd = ""
-        
+
         # check thermostat type, derive command and min/max values
         LOG.debug("fhem_entity: %s" % fhem_entity)
         # for that get thermostat device
@@ -496,31 +500,30 @@ class FhemSkill(FallbackSkill):
             cmd = "desired-temp"
             if 'FBTYPE' in td['Readings'] and \
                 td['Readings']['FBTYPE']=='Comet DECT':
-                LOG.debug("Comet DECT")
+                #LOG.debug("Comet DECT")
                 minValue=8.0
                 maxValue=28.0
             elif td['Internals']['TYPE']=='FHT':
-                LOG.debug("FHT")
+                #LOG.debug("FHT")
                 minValue=6.0
                 maxValue=30.0
             elif td['Internals']['TYPE']=='CUL_HM':
-                LOG.debug("HM")
+                #LOG.debug("HM")
                 # test for Clima-Subdevice
                 if 'channel_04' in td['Internals']:
                     target_entity = td['Internals']['channel_04']
         elif 'desiredTemperature' in td['Readings']:
-            LOG.debug("MAX")
+            #LOG.debug("MAX")
             cmd = "desiredTemperature"
             minValue=4.5
-            maxValue=30.5            
+            maxValue=30.5
         elif 'desired' in td['Readings']:
-            LOG.debug("PID20")
+            #LOG.debug("PID20")
             cmd = "desired"
         elif 'homebridgeMapping' in td['Attributes']:
             LOG.debug("homebridgeMapping")
             hbm = td['Attributes']['homebridgeMapping'].split(" ")
             for h in hbm:
-                #LOG.debug("h = %s" % h)
                 #TargetTemperature=desired-temp::desired-temp,
                 #minValue=5,maxValue=35,minStep=0.5,nocache=1
                 if h.startswith("TargetTemperature"):
@@ -530,7 +533,6 @@ class FhemSkill(FallbackSkill):
                         LOG.debug("t = %s" % t)
                         if t.startswith("desired-temp"):
                             t2 = t.split(":")
-                            LOG.debug("t2 = %s" % t2)
                             cmd = t2[0]
                             if t2[1] != '':
                                 target_entity = t2[1]
@@ -540,7 +542,7 @@ class FhemSkill(FallbackSkill):
                             maxValue = float(t.split("=")[1])
                         elif t.startswith("minStep"):
                             minStep = float(t.split("=")[1])
-        
+
         if cmd=="":
             LOG.info("FHEM device %s has unknown thermostat type" % entity_id)
             self.speak_dialog('fhem.error.notsupported')
@@ -550,6 +552,7 @@ class FhemSkill(FallbackSkill):
         LOG.debug("minValue: %s maxValue: %s minStep: %s" % (minValue,maxValue,
                     minStep))
 
+        # check if desired temperature is out of bounds
         if (float(temperature)<minValue) or (float(temperature)>maxValue) or \
                 (float(temperature) % minStep != 0.0):
             self.speak_dialog('fhem.thermostat.badreq',
@@ -557,11 +560,9 @@ class FhemSkill(FallbackSkill):
                                 "maxValue": maxValue,
                                 "minStep": minStep})
             return
-        
+
         action = "%s %s" % (cmd, temperature)
-        
         LOG.debug("set %s %s" % (target_entity, action))
-        
         self.fhem.execute_service("set", target_entity, action)
         self.speak_dialog('fhem.set.thermostat',
                           data={
@@ -572,28 +573,38 @@ class FhemSkill(FallbackSkill):
     def handle_fallback(self, message):
         LOG.debug("entering handle_fallback with utterance '%s'" %
                   message.data.get('utterance'))
-        if not self.enable_fallback:
-            LOG.debug("fallback not enabled!")
-            return False
-
         self._setup()
         if self.fhem is None:
             LOG.debug("FHEM setup error")
             self.speak_dialog('fhem.error.setup')
             return False
+        if not self.enable_fallback:
+            LOG.debug("fallback not enabled!")
+            return False
 
         # pass message to FHEM-server
         try:
             if self.fallback_device_type == "TEERKO":
-                LOG.debug("fallback device type TEERKO")
-                req = self.fhem.execute_service("set",
+                #LOG.debug("fallback device type TEERKO")
+                response = self.fhem.execute_service("set",
                         self.fallback_device_name,
                         "TextCommand {}".format(message.data.get('utterance')))
             elif self.fallback_device_type == "Talk2Fhem":
-                LOG.debug("fallback device type Talk2Fhem")
-                req = self.fhem.execute_service("set",
+                #LOG.debug("fallback device type Talk2Fhem")
+                response = self.fhem.execute_service("set",
                                                 self.fallback_device_name,
                                                 message.data.get('utterance'))
+            elif self.fallback_device_type == "Babble":
+                #LOG.debug("fallback device type Babble")
+                cmd = '{Babble_DoIt("%s","%s","testit","1")}' % (self.fallback_device_name,
+                                                message.data.get('utterance'))
+                response = self.fhem.execute_service(cmd)
+                # Babble gives feedback through response
+                # existence of string '[Babble_Normalize]' means success!
+                if response.text.find('[Babble_Normalize]') > 0:
+                    return True
+                else:
+                    return False
             else:
                 LOG.debug("fallback device type UNKNOWN")
                 return False
@@ -603,31 +614,32 @@ class FhemSkill(FallbackSkill):
             return False
 
         result = self.fhem.get_device("NAME", self.fallback_device_name)
-        # LOG.debug("result: %s" % result)
+        #LOG.debug("result: %s" % result)
 
         if not result:  # or result['Readings']['status']['Value'] == 'err':
-            LOG.debug("no result")
+            #LOG.debug("no result")
             return False
 
         answer = ""
         if self.fallback_device_type == "Talk2Fhem":
             if result['Readings']['status']['Value'] == 'answers':
-                LOG.debug("answering with Talk2Fhem result")
+                #LOG.debug("answering with Talk2Fhem result")
                 answer = result['Readings']['answers']['Value']
             else:
                 return False
         elif self.fallback_device_type == "TEERKO":
             if result['Readings']['Answer']['Value'] is not None:
-                LOG.debug("answering with TEERKO result")
+                #LOG.debug("answering with TEERKO result")
                 answer = result['Readings']['Answer']['Value']
             else:
                 return False
+        # Babble gives feedback through response, so nothing to do here
         else:
-            LOG.debug("status undefined")
+            #LOG.debug("status undefined")
             return False
 
         if answer == "":
-            LOG.debug("empty answer")
+            #LOG.debug("empty answer")
             return False
 
         asked_question = False

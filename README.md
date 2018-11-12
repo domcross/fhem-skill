@@ -5,7 +5,7 @@ based off the original code from https://github.com/btotharye/mycroft-homeassist
 Make sure you have your Fhem settings filled out on home.mycroft.ai.
 
 This is a skill to add [Fhem](https://fhem.de) support to
-[Mycroft](https://mycroft.ai). Currently is support turning on and off several entity types (`light`, `switch`, `outlet`), changing temperature (`thermometer`) and get status information ('sensor','thermometer').
+[Mycroft](https://mycroft.ai). Currently is support turning on and off several entity types (`light`, `switch`, `outlet`), changing temperature (`thermostat`) and get status information (`sensor`, `thermometer`).
 
 ## Installation
 Before installation ensure you have python-dev package installed for your OS.  For debian this would be `apt-get install python-dev` it is required for the levenstein package.
@@ -23,9 +23,8 @@ Fill this out with your appropriate Fhem information and hit save.
 
 ## Usage
 
-Say something like "Hey Mycroft, turn on living room lights". Currently available commands
-are "turn (on|off) <device>" and "status <device>". Matching to Fhem entity names is done by scanning the Fhem API and looking for the closest matching alias name. The matching is fuzzy (thanks to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft didn't quite get what you said.  
-I have further expanded this to also look at groups as well as lights.  This way if you say turn on the office light, it will do the group and not just 1 light, this can easily be modified to your preference by just removing group's from the fuzzy logic in the code.
+Say something like "Hey Mycroft, turn on living room lights". Currently available commands are "turn (on|off) <device>" and "status <device>". 
+Matching to Fhem entity names is done by scanning the Fhem API and looking for the closest matching device ID or alias name. The matching is fuzzy (thanks to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft didn't quite get what you said.  
 
 ## Supported Phrases/Entities
 Currently the phrases are:
@@ -33,7 +32,6 @@ Currently the phrases are:
 * Hey Mycroft, status of thermostat (For sensors in homeassistant)
 * Hey Mycroft, what is the current living room temp
 * Hey Mycroft, set thermostat livingroom to 20 degrees
-
 
 ## TODO
  * Script intents processing
