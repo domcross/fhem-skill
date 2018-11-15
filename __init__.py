@@ -5,6 +5,7 @@ from mycroft.util.log import LOG
 
 from os.path import dirname, join
 from requests.exceptions import ConnectionError
+from fuzzywuzzy import fuzz
 
 from .fhem_client import FhemClient
 
@@ -418,43 +419,50 @@ class FhemSkill(FallbackSkill):
         # # if one wants to look up "outside temperature"
         # # self.set_context("SubjectOfInterest", sensor_unit)
 
-    # In progress, still testing.
-    # Device location works.
-    # Proximity might be an issue
-    # - overlapping command for directions modules
-    # - (e.g. "How far is x from y?")
-    @intent_handler(AdaptIntent().require("DeviceTrackerKeyword")
-                    .require("Entity"))
-    def handle_tracker_intent(self, message):
-        # TODO not supported yet
-        self.speak_dialog('fhem.error.notsupported')
-        return
-        #
+    #@intent_handler(AdaptIntent().require("PresenceTrackerKeyword").require("Entity"))
+    @intent_file_handler('presence.intent')
+    def handle_presence_intent(self, message):
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return
-        entity = message.data["Entity"]
-        allowed_types = ['device_tracker']  # TODO
-        LOG.debug("Entity: %s" % entity)
+        wanted = message.data["entity"]
+        LOG.debug("wanted: %s" % wanted)
+        
         try:
-            fhem_entity = self.fhem.find_device(entity, allowed_types)
+            r = self.fhem.execute_service("jsonlist2", "TYPE=ROOMMATE&XHR=1")
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
-        if fhem_entity is None:
-            self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
+        
+        result = r.json()
+        if result['totalResultsReturned'] < 1:
+            self.speak_dialog('fhem.presence.error')
             return
 
-        # IDEA: set context for 'locate it again' or similar
-        # self.set_context('Entity', fhem_entity['dev_name'])
-
-        entity = fhem_entity['id']
-        dev_name = fhem_entity['dev_name']
-        dev_location = fhem_entity['state']
-        self.speak_dialog('fhem.tracker.found',
-                          data={'dev_name': dev_name,
-                                'location': dev_location})
+        roommates = result['Results']
+        presence = None
+        bestRatio = 66
+        
+        for rm in roommates:
+            if 'rr_realname' in rm['Attributes'] and \
+                rm['Attributes']['rr_realname'] in rm['Attributes']:
+                    realname = rm['Attributes'][rm['Attributes']['rr_realname']]
+                    LOG.debug("realname: %s" % realname)
+                    ratio = fuzz.ratio(wanted.lower(),realname.lower())
+                    LOG.debug("ratio: %s" % ratio)
+                    if ratio > bestRatio:
+                        presence = rm['Readings']['presence']['Value']
+                        bestName = realname
+                        bestRatio = ratio
+        
+        if presence:
+            location = self.__translate('presence.%s' % presence)
+            self.speak_dialog('fhem.presence.found',
+                          data={'wanted': bestName,
+                                'location': location})
+        else:
+            self.speak_dialog('fhem.presence.error')
 
     @intent_file_handler('set.climate.intent')
     def handle_set_thermostat_intent(self, message):
