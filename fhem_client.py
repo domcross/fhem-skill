@@ -91,26 +91,26 @@ class FhemClient(object):
 
         if json_data:
             for state in json_data["Results"]:
-                LOG.debug("==================================================")
+                # LOG.debug("==================================================")
                 norm_name = self._normalize(state['Name'])
                 norm_name_list = norm_name.split(" ")
-                LOG.debug("norm_name_list = %s" % norm_name_list)
+                # LOG.debug("norm_name_list = %s" % norm_name_list)
                 # add room to name
                 room = ""
                 ignore = [x.lower() for x in self.ignore_rooms.split(",")]
-                LOG.debug("ignore = %s" % ignore)
+                # LOG.debug("ignore = %s" % ignore)
                 if 'room' in state['Attributes']:
                     rooms = [x.lower() for x in
                              state['Attributes']['room'].split(",")]
                     rooms.remove(self.room.lower())
-                    LOG.debug("rooms = %s" % rooms)
+                    # LOG.debug("rooms = %s" % rooms)
                     for r in rooms:
                         if (r not in ignore) and (r not in norm_name_list):
-                            LOG.debug("adding r = %s" % r)
+                            # LOG.debug("adding r = %s" % r)
                             room += (" " + r)
 
                 norm_name += self._normalize(room)
-                LOG.debug("norm_name = %s" % norm_name)
+                # LOG.debug("norm_name = %s" % norm_name)
 
                 if 'alias' in state['Attributes']:
                     alias = state['Attributes']['alias']
