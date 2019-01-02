@@ -1,17 +1,30 @@
+# Copyright 2018, domcross
+# Github https://github.com/domcross
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # from adapt.intent import IntentBuilder
 from mycroft import intent_handler, AdaptIntent, intent_file_handler
+from mycroft.api import DeviceApi
 from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
 
 # from os.path import dirname, join
-from requests.exceptions import ConnectionError
 from fuzzywuzzy import fuzz
-from .fhem_client import FhemClient
+import re
+import fhem as python_fhem
 
-__author__ = 'domcross, robconnolly, btotharye, nielstron'
-
-# Timeout time for requests
-TIMEOUT = 10
+__author__ = 'domcross'
 
 
 class FhemSkill(FallbackSkill):
@@ -23,7 +36,17 @@ class FhemSkill(FallbackSkill):
         self.enable_fallback = False
 
     def _setup(self, force=False):
-        if self.settings is not None and (force or self.fhem is None):
+        # when description of home.mycroft.ai > Devices > [this mycroft device]
+        # is filled, use this the name of the room where mycroft is located
+        self.device_location = ""
+        if self.settings.get('device_location', False):
+            dev = DeviceApi()
+            info = dev.get()
+            if 'description' in info:
+                self.device_location = info['description']
+        LOG.debug("mycroft device location: {}".format(self.device_location))
+
+        if self.settings and (force or self.fhem is None):
             LOG.debug("_setup")
             portnumber = self.settings.get('portnum')
             try:
@@ -34,17 +57,21 @@ class FhemSkill(FallbackSkill):
                 # String might be some rubbish (like '')
                 portnumber = 0
 
-            self.fhem = FhemClient(
-                self.settings.get('host'),
-                self.settings.get('username'),
-                self.settings.get('password'),
-                portnumber,
-                self.settings.get('room'),
-                self.settings.get('ignore_rooms'),
-                self.settings.get('ssl', False),
-                self.settings.get('verify', False)
-            )
-            if self.fhem:
+            self.fhem = \
+                python_fhem.Fhem(self.settings.get('host'),
+                                 port=portnumber,  csrf=True,
+                                 protocol=self.settings.get('protocol',
+                                                            'http').lower(),
+                                 use_ssl=self.settings.get('ssl', False),
+                                 username=self.settings.get('username'),
+                                 password=self.settings.get('password')
+                                 )
+            self.fhem.connect()
+            LOG.debug("connect: {}".format(self.fhem.connected()))
+            if self.fhem.connected():
+                self.room = self.settings.get('room', 'Homebridge')
+                self.ignore_rooms = self.settings.get('ignore_rooms', '')
+
                 # Check if natural language control is loaded at fhem-server
                 # and activate fallback accordingly
                 LOG.debug("fallback_device_name %s" %
@@ -54,13 +81,15 @@ class FhemSkill(FallbackSkill):
                 if self.settings.get('enable_fallback') and \
                    self.settings.get('fallback_device_name', ""):
                     fallback_device = \
-                        self.fhem.get_device("NAME",
-                                             self.settings.get(
-                                                 'fallback_device_name', ""))
+                        self.fhem.get_device(self.settings.get(
+                            'fallback_device_name', ""))
                     if fallback_device:
-                        self.fallback_device_name = fallback_device['Name']
-                        self.fallback_device_type = \
-                            fallback_device['Internals']['TYPE']
+                        # LOG.debug("fallback device {}".format(fallback_device))
+                        self.fallback_device_name = self.settings.get(
+                            'fallback_device_name', "")
+                        self.fallback_device_type = self.fhem.get_internals(
+                            "TYPE", name=self.fallback_device_name)[
+                                self.fallback_device_name]
                         LOG.debug("fallback_device_type is %s" %
                                   self.fallback_device_type)
                         if self.fallback_device_type in ["Talk2Fhem",
@@ -73,11 +102,8 @@ class FhemSkill(FallbackSkill):
                     self.enable_fallback = False
                 LOG.debug('fhem-fallback enabled: %s' % self.enable_fallback)
 
-    def _force_setup(self):
-        LOG.debug('Creating a new Fhem-Client')
-        self._setup(True)
-
     def initialize(self):
+        self._setup(True)
         # Needs higher priority than general fallback skills
         self.register_fallback(self.handle_fallback, 2)
         # Check and then monitor for credential changes
@@ -88,12 +114,12 @@ class FhemSkill(FallbackSkill):
         LOG.debug("websettings changed")
         if self.settings.get('host', None):
             try:
-                self._setup(True)
+                self._setup(force=True)
             except Exception:
                 pass
 
     @intent_handler(AdaptIntent().require("SwitchActionKeyword")
-                    .optionally("Action").require("Entity"))
+                    .optionally("Action").require("Device"))
     def handle_switch_intent(self, message):
         self._setup()
         if self.fhem is None:
@@ -101,26 +127,26 @@ class FhemSkill(FallbackSkill):
             return
         LOG.debug("Starting Switch Intent")
         LOG.debug("message.data {}".format(message.data))
-        entity = message.data["Entity"]
-        action = message.data["Action"]
-        allowed_types = ['light', 'switch', 'outlet']
-        LOG.debug("Entity: %s" % entity)
+        device = message.data["Device"]
+        if message.data["Action"]:
+            action = message.data["Action"]
+        else:
+            action = ""
+        allowed_types = '(light|switch|outlet)'
+        LOG.debug("Device: %s" % device)
         LOG.debug("Action: %s" % action)
         # TODO if entity is 'all', 'any' or 'every' turn on
         # every single entity not the whole group
         try:
-            fhem_entity = self.fhem.find_device(entity, allowed_types)
+            fhem_device = self._find_device(device, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
-        if fhem_entity is None:
-            self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
+        if fhem_device is None:
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": device})
             return
-        LOG.debug("Entity State: %s" % fhem_entity['state'])
+        LOG.debug("Entity State: %s" % fhem_device['state'])
         # fhem_data = {'entity_id': fhem_entity['id']}
-
-        # IDEA: set context for 'turn it off' again or similar
-        # self.set_context('Entity', fhem_entity['dev_name'])
 
         # keep original actioname for speak_dialog
         # when device already is in desiredstate
@@ -130,34 +156,34 @@ class FhemSkill(FallbackSkill):
         elif (action in self.translate('off_keywords').split(',')):
             action = 'off'
         LOG.debug("- action: %s" % action)
-        LOG.debug("- state: %s" % fhem_entity['state']['Value'])
-        if fhem_entity['state']['Value'] == action:
+        LOG.debug("- state: %s" % fhem_device['state']['Value'])
+        if fhem_device['state']['Value'] == action:
             LOG.debug("Entity in requested state")
             self.speak_dialog('fhem.device.already', data={
-                'dev_name': fhem_entity['dev_name'],
+                'dev_name': fhem_device['dev_name'],
                 'action': original_action})
         elif (action in self.translate('toggle_keywords').split(',')):
-            if(fhem_entity['state']['Value'] == 'off'):
+            if(fhem_device['state']['Value'] == 'off'):
                 action = 'on'
             else:
                 action = 'off'
             LOG.debug("toggled action: %s" % action)
-            self.fhem.execute_service("set", fhem_entity['id'], action)
+            self.fhem.send_cmd("set {} {}".format(fhem_device['id'], action))
             self.speak_dialog('fhem.switch',
-                              data={'dev_name': fhem_entity['dev_name'],
+                              data={'dev_name': fhem_device['dev_name'],
                                     'action': original_action})
         elif action in ["on", "off"]:
             LOG.debug("action: on/off")
             self.speak_dialog('fhem.switch',
-                              data={'dev_name': fhem_entity['dev_name'],
+                              data={'dev_name': fhem_device['dev_name'],
                                     'action': original_action})
-            self.fhem.execute_service("set", fhem_entity['id'], action)
+            self.fhem.send_cmd("set {} {}".format(fhem_device['id'], action))
         else:
             self.speak_dialog('fhem.error.sorry')
             return
 
     @intent_handler(AdaptIntent().optionally("LightsKeyword")
-                    .require("SetVerb").require("Entity")
+                    .require("SetVerb").require("Device")
                     .require("BrightnessValue"))
     def handle_light_set_intent(self, message):
         # TODO not supported yet
@@ -168,7 +194,7 @@ class FhemSkill(FallbackSkill):
         if(self.fhem is None):
             self.speak_dialog('fhem.error.setup')
             return
-        entity = message.data["Entity"]
+        device = message.data["Device"]
         allowed_types = ['light']  # TODO
         try:
             brightness_req = float(message.data["BrightnessValue"])
@@ -178,19 +204,19 @@ class FhemSkill(FallbackSkill):
             brightness_req = 10.0
         brightness_value = int(brightness_req / 100 * 255)
         brightness_percentage = int(brightness_req)
-        LOG.debug("Entity: %s" % entity)
+        LOG.debug("device: %s" % device)
         LOG.debug("Brightness Value: %s" % brightness_value)
         LOG.debug("Brightness Percent: %s" % brightness_percentage)
         try:
-            fhem_entity = self.fhem.find_device(entity, allowed_types)
+            fhem_device = self.fhem.find_device(device, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
-        if fhem_entity is None:
+        if fhem_device is None:
             self.speak_dialog('fhem.device.unknown', data={
-                              "dev_name": entity})
+                              "dev_name": device})
             return
-        fhem_data = {'entity_id': fhem_entity['id']}
+        fhem_data = {'device_id': fhem_device['id']}
 
         # IDEA: set context for 'turn it off again' or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
@@ -198,7 +224,7 @@ class FhemSkill(FallbackSkill):
         # TODO - Allow value set
         if "SetVerb" in message.data:
             fhem_data['brightness'] = brightness_value
-            fhem_data['dev_name'] = fhem_entity['dev_name']
+            fhem_data['dev_name'] = fhem_device['dev_name']
             self.fhem.execute_service("fhem", "turn_on", fhem_data)
             self.speak_dialog('fhem.brightness.dimmed',
                               data=fhem_data)
@@ -209,7 +235,7 @@ class FhemSkill(FallbackSkill):
     @intent_handler(AdaptIntent().optionally("LightsKeyword")
                     .one_of("IncreaseVerb", "DecreaseVerb",
                             "LightBrightenVerb", "LightDimVerb")
-                    .require("Entity").optionally("BrightnessValue"))
+                    .require("Device").optionally("BrightnessValue"))
     def handle_light_adjust_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -220,7 +246,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.setup')
             return
         allowed_types = ['light']
-        entity = message.data["Entity"]
+        device = message.data["Device"]
 
         try:
             brightness_req = float(message.data["BrightnessValue"])
@@ -230,18 +256,18 @@ class FhemSkill(FallbackSkill):
             brightness_req = 10.0
         brightness_value = int(brightness_req / 100 * 255)
         # brightness_percentage = int(brightness_req) # debating use
-        LOG.debug("Entity: %s" % entity)
+        LOG.debug("device: %s" % device)
         LOG.debug("Brightness Value: %s" % brightness_value)
         try:
-            fhem_entity = self.fhem.find_device(entity, allowed_types)
+            fhem_device = self.fhem.find_device(device, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
-        if fhem_entity is None:
+        if fhem_device is None:
             self.speak_dialog('fhem.device.unknown', data={
-                              "dev_name": entity})
+                              "dev_name": device})
             return
-        fhem_data = {'entity_id': fhem_entity['id']}
+        fhem_data = {'device_id': fhem_device['id']}
         # IDEA: set context for 'turn it off again' or similar
         # self.set_context('Entity', fhem_entity['dev_name'])
 
@@ -252,15 +278,15 @@ class FhemSkill(FallbackSkill):
         #        action = 'brighten'
         if "DecreaseVerb" in message.data or \
                 "LightDimVerb" in message.data:
-            if fhem_entity['state'] == "off":
+            if fhem_device['state'] == "off":
                 self.speak_dialog('fhem.brightness.cantdim.off',
-                                  data=fhem_entity)
+                                  data=fhem_device)
             else:
-                light_attrs = self.fhem.find_entity_attr(fhem_entity['id'])
+                light_attrs = self.fhem.find_entity_attr(fhem_device['id'])
                 if light_attrs['unit_measure'] is None:
                     self.speak_dialog(
                         'fhem.brightness.cantdim.dimmable',
-                        data=fhem_entity)
+                        data=fhem_device)
                 else:
                     fhem_data['brightness'] = light_attrs['unit_measure']
                     if fhem_data['brightness'] < brightness_value:
@@ -268,21 +294,21 @@ class FhemSkill(FallbackSkill):
                     else:
                         fhem_data['brightness'] -= brightness_value
                     self.fhem.execute_service("fhem", "turn_on", fhem_data)
-                    fhem_data['dev_name'] = fhem_entity['dev_name']
+                    fhem_data['dev_name'] = fhem_device['dev_name']
                     self.speak_dialog('fhem.brightness.decreased',
                                       data=fhem_data)
         elif "IncreaseVerb" in message.data or \
                 "LightBrightenVerb" in message.data:
-            if fhem_entity['state'] == "off":
+            if fhem_device['state'] == "off":
                 self.speak_dialog(
                     'fhem.brightness.cantdim.off',
-                    data=fhem_entity)
+                    data=fhem_device)
             else:
-                light_attrs = self.fhem.find_entity_attr(fhem_entity['id'])
+                light_attrs = self.fhem.find_entity_attr(fhem_device['id'])
                 if light_attrs['unit_measure'] is None:
                     self.speak_dialog(
                         'fhem.brightness.cantdim.dimmable',
-                        data=fhem_entity)
+                        data=fhem_device)
                 else:
                     fhem_data['brightness'] = light_attrs['unit_measure']
                     if fhem_data['brightness'] > brightness_value:
@@ -290,7 +316,7 @@ class FhemSkill(FallbackSkill):
                     else:
                         fhem_data['brightness'] += brightness_value
                     self.fhem.execute_service("fhem", "turn_on", fhem_data)
-                    fhem_data['dev_name'] = fhem_entity['dev_name']
+                    fhem_data['dev_name'] = fhem_device['dev_name']
                     self.speak_dialog('fhem.brightness.increased',
                                       data=fhem_data)
         else:
@@ -341,32 +367,32 @@ class FhemSkill(FallbackSkill):
             self.fhem.execute_service("fhem", "turn_on", data=fhem_data)
 
     @intent_handler(AdaptIntent().require("SensorStatusKeyword")
-                    .require("Entity"))
+                    .require("Device"))
     def handle_sensor_intent(self, message):
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return
 
-        entity = message.data["Entity"]
-        allowed_types = ['sensor', 'thermometer']  # TODO
-        LOG.debug("Entity: %s" % entity)
+        device = message.data["Device"]
+        allowed_types = '(sensor|thermometer)'
+        LOG.debug("device: %s" % device)
         try:
-            fhem_entity = self.fhem.find_device(entity, allowed_types)
+            fhem_device = self._find_device(device, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
-        if fhem_entity is None:
+        if fhem_device is None:
             self.speak_dialog('fhem.device.unknown', data={
-                              "dev_name": entity})
+                              "dev_name": device})
             return
 
-        entity = fhem_entity['id']
-        sensor_name = fhem_entity['dev_name']
+        device = fhem_device['id']
+        sensor_name = fhem_device['dev_name']
         sensor_state = ""
         sensor_unit = ""
 
-        tokens = fhem_entity['state']['Value'].split(" ")
+        tokens = fhem_device['state']['Value'].split(" ")
         for t in range(0, len(tokens)):
             tok = tokens[t].lower().replace(":", "")
             # LOG.debug("tok = %s" % tok)
@@ -380,8 +406,8 @@ class FhemSkill(FallbackSkill):
                 sensor_state += tokens[t]
             sensor_state += " "
 
-        LOG.debug("fhem_entity['state']['Value']: %s" %
-                  fhem_entity['state']['Value'])
+        LOG.debug("fhem_device['state']['Value']: %s" %
+                  fhem_device['state']['Value'])
         LOG.debug("sensor_state: %s" % sensor_state)
         self.speak_dialog('fhem.sensor', data={
              "dev_name": sensor_name,
@@ -436,23 +462,20 @@ class FhemSkill(FallbackSkill):
         LOG.debug("wanted: %s" % wanted)
 
         try:
-            r = self.fhem.execute_service("jsonlist2", "TYPE=ROOMMATE&XHR=1")
+            roommates = self.fhem.get(room=self.room, device_type='ROOMMATE')
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
 
-        result = r.json()
-        if result['totalResultsReturned'] < 1:
+        if len(roommates) < 1:
             self.speak_dialog('fhem.presence.error')
             return
 
-        roommates = result['Results']
         presence = None
         bestRatio = 66
 
         for rm in roommates:
-            if 'rr_realname' in rm['Attributes'] and \
-               rm['Attributes']['rr_realname'] in rm['Attributes']:
+            if 'rr_realname' in rm['Attributes'].keys():
                     realname = rm['Attributes'][rm['Attributes']['rr_realname']]
                     LOG.debug("realname: %s" % realname)
                     ratio = fuzz.ratio(wanted.lower(), realname.lower())
@@ -478,25 +501,25 @@ class FhemSkill(FallbackSkill):
             return
         LOG.debug("Starting Thermostat Intent")
 
-        entity = message.data["entity"]
-        LOG.debug("Entity: %s" % entity)
+        device = message.data["device"]
+        LOG.debug("Device: %s" % device)
         LOG.debug("This is the message data: %s" % message.data)
         temperature = message.data["temp"]
         LOG.debug("desired temperature from message: %s" % temperature)
 
-        allowed_types = ['thermostat']
+        allowed_types = 'thermostat'
         try:
-            fhem_entity = self.fhem.find_device(entity, allowed_types)
+            fhem_device = self._find_device(device, allowed_types)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
-        if fhem_entity is None:
-            self.speak_dialog('fhem.device.unknown', data={"dev_name": entity})
+        if fhem_device is None:
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": device})
             return
-        LOG.debug("Entity State: %s" % fhem_entity['state'])
+        LOG.debug("Entity State: %s" % fhem_device['state'])
 
-        entity_id = fhem_entity['id']
-        target_entity = entity_id
+        device_id = fhem_device['id']
+        target_device = device_id
 
         # defaults for min/max temp and step
         minValue = 5.0
@@ -506,9 +529,13 @@ class FhemSkill(FallbackSkill):
         cmd = ""
 
         # check thermostat type, derive command and min/max values
-        LOG.debug("fhem_entity: %s" % fhem_entity)
+        LOG.debug("fhem_device: %s" % fhem_device)
         # for that get thermostat device
-        td = self.fhem.get_device("NAME",fhem_entity['id'])
+        td = self.fhem.get_device(fhem_device['id'])
+        if len(td) != 1:
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": device})
+            return
+        td = td[0]
         LOG.debug("td: %s" % td)
         if 'desired-temp' in td['Readings']:
             cmd = "desired-temp"
@@ -558,13 +585,13 @@ class FhemSkill(FallbackSkill):
                             minStep = float(t.split("=")[1])
 
         if not cmd:
-            LOG.info("FHEM device %s has unknown thermostat type" % entity_id)
+            LOG.info("FHEM device %s has unknown thermostat type" % device_id)
             self.speak_dialog('fhem.error.notsupported')
             return
 
-        LOG.debug("target_entity: %s cmd: %s" % (target_entity, cmd))
-        LOG.debug("minValue: %s maxValue: %s minStep: %s" % (minValue,maxValue,
-                    minStep))
+        LOG.debug("target_device: %s cmd: %s" % (target_device, cmd))
+        LOG.debug("minValue: %s maxValue: %s minStep: %s" % (minValue, maxValue,
+                                                             minStep))
 
         # check if desired temperature is out of bounds
         if (float(temperature) < minValue) or (float(temperature) > maxValue) \
@@ -576,11 +603,11 @@ class FhemSkill(FallbackSkill):
             return
 
         action = "%s %s" % (cmd, temperature)
-        LOG.debug("set %s %s" % (target_entity, action))
-        self.fhem.execute_service("set", target_entity, action)
+        LOG.debug("set %s %s" % (target_device, action))
+        self.fhem.send_cmd("set {} {}".format(target_device, action))
         self.speak_dialog('fhem.set.thermostat',
                           data={
-                              "dev_name": entity,
+                              "dev_name": device,
                               "value": temperature,
                               "unit": unit})
 
@@ -598,23 +625,22 @@ class FhemSkill(FallbackSkill):
 
         # pass message to FHEM-server
         try:
+            # TODO check response after switch to python-fhem lib
             if self.fallback_device_type == "TEERKO":
                 # LOG.debug("fallback device type TEERKO")
-                response = self.fhem.execute_service("set",
-                                                     self.fallback_device_name,
-                                                     "TextCommand {}".format(
-                                                         message.data.get(
-                                                             'utterance')))
+                response = self.fhem.send_cmd(
+                    "set {} TextCommand {}".format(self.fallback_device_name,
+                                                   message.data.get('utterance')))
             elif self.fallback_device_type == "Talk2Fhem":
                 # LOG.debug("fallback device type Talk2Fhem")
-                response = self.fhem.execute_service("set",
-                                                     self.fallback_device_name,
-                                                     message.data.get('utterance'))
+                response = self.fhem.send_cmd(
+                    "set {} {}".format(self.fallback_device_name,
+                                       message.data.get('utterance')))
             elif self.fallback_device_type == "Babble":
                 # LOG.debug("fallback device type Babble")
                 cmd = '{Babble_DoIt("%s","%s","testit","1")}' % \
                     (self.fallback_device_name, message.data.get('utterance'))
-                response = self.fhem.execute_service(cmd)
+                response = self.fhem.send_cmd(cmd)
                 # Babble gives feedback through response
                 # existence of string '[Babble_Normalize]' means success!
                 if response.text.find('[Babble_Normalize]') > 0:
@@ -629,24 +655,25 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.offline')
             return False
 
-        result = self.fhem.get_device("NAME", self.fallback_device_name)
-        # LOG.debug("result: %s" % result)
+        fdn = self.fallback_device_name
+        result = self.fhem.get_readings(name=fdn)
+        LOG.debug("result: %s" % result)
 
-        if not result:  # or result['Readings']['status']['Value'] == 'err':
+        if not result:
             # LOG.debug("no result")
             return False
 
         answer = ""
         if self.fallback_device_type == "Talk2Fhem":
-            if result['Readings']['status']['Value'] == 'answers':
+            if result[fdn]['status']['Value'] == 'answers':
                 # LOG.debug("answering with Talk2Fhem result")
-                answer = result['Readings']['answers']['Value']
+                answer = result[fdn]['answers']['Value']
             else:
                 return False
         elif self.fallback_device_type == "TEERKO":
-            if result['Readings']['Answer']['Value'] is not None:
+            if result[fdn]['Answer']['Value'] is not None:
                 # LOG.debug("answering with TEERKO result")
-                answer = result['Readings']['Answer']['Value']
+                answer = result[fdn]['Answer']['Value']
             else:
                 return False
         # Babble gives feedback through response, so nothing to do here
@@ -666,6 +693,85 @@ class FhemSkill(FallbackSkill):
             asked_question = True
         self.speak(answer, expect_response=asked_question)
         return True
+
+    def _find_device(self, device, allowed_types):
+        LOG.debug("device: {} allowed_types: {}".format(device, allowed_types))
+        device_candidates = self.fhem.get(room=self.room,
+                                          filters={'genericDeviceType':
+                                                   allowed_types})
+        LOG.debug(device_candidates)
+        # require a score above 50%
+        best_score = 50
+        best_device = None
+
+        if device_candidates:
+            for dc in device_candidates:
+                # LOG.debug("==================================================")
+                norm_name = self._normalize(dc['Name'])
+                norm_name_list = norm_name.split(" ")
+                # LOG.debug("norm_name_list = %s" % norm_name_list)
+                # add room to name
+                room = ""
+                LOG.debug(self.ignore_rooms)
+                ignore = [x.lower() for x in self.ignore_rooms.split(",")]
+                LOG.debug("ignore = %s" % ignore)
+                if 'room' in dc['Attributes']:
+                    rooms = [x.lower() for x in
+                             dc['Attributes']['room'].split(",")]
+                    rooms.remove(self.room.lower())
+                    # LOG.debug("rooms = %s" % rooms)
+                    for r in rooms:
+                        if (r not in ignore) and (r not in norm_name_list):
+                            # LOG.debug("adding r = %s" % r)
+                            room += (" " + r)
+
+                norm_name += self._normalize(room)
+                # LOG.debug("norm_name = %s" % norm_name)
+
+                if 'alias' in dc['Attributes']:
+                    alias = dc['Attributes']['alias']
+                else:
+                    alias = dc['Name']
+                norm_alias = self._normalize(alias)
+
+                # LOG.debug("norm_name_list = %s" % norm_name_list)
+                # LOG.debug("types = %s" % types)
+                # LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
+
+                try:
+                    if (norm_name != norm_alias) and ('alias' in
+                                                      dc['Attributes']):
+                        score = fuzz.token_sort_ratio(
+                            device,
+                            norm_alias)
+                        if score > best_score:
+                            best_score = score
+                            best_device = {
+                                "id": dc['Name'],
+                                "dev_name": alias,
+                                "state": dc['Readings']['state'],
+                                "best_score": best_score}
+
+                        score = fuzz.token_sort_ratio(
+                            device,
+                            norm_name)
+                        # LOG.debug("%s %s" % (norm_name, score))
+                        if score > best_score:
+                            best_score = score
+                            best_device = {
+                                "id": dc['Name'],
+                                "dev_name": alias,
+                                "state": dc['Readings']['state'],
+                                "best_score": best_score}
+                except KeyError:
+                    pass  # print("KeyError")
+            LOG.debug("best device = %s" % best_device)
+            return best_device
+
+    def _normalize(self, name):
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        return s2.replace("_", " ").replace("-", " ").replace(".", " ")
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)

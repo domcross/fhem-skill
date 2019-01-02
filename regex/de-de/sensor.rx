@@ -1,2 +1,2 @@
-(wie ist der wert von|was ist der wert von|sensor) (?P<Entity>.*)
-(wie ist der status von|was ist der status von|status) (?P<Entity>.*)
+(wie ist der wert von|was ist der wert von|sensor) (?P<Device>.*)
+(wie ist der status von|was ist der status von|status) (?P<Device>.*)

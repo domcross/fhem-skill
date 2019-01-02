@@ -1,1 +1,1 @@
-(activate|fire|trigger|call up) (?P<Entity>.*)
+(activate|fire|trigger|call up) (?P<Device>.*)

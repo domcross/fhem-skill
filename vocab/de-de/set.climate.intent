@@ -1,3 +1,3 @@
 
-(stelle|setze|ändere) (den|das|) {entity} auf {temp} grad
-(stelle|setze|ändere) (die) {entity} temperatur auf {temp} grad
+(stelle|setze|ändere) (den|das|) {device} auf {temp} grad
+(stelle|setze|ändere) (die) {device} temperatur auf {temp} grad
