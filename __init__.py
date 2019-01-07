@@ -18,6 +18,7 @@ from mycroft import intent_handler, AdaptIntent, intent_file_handler
 from mycroft.api import DeviceApi
 from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
+from mycroft.util.parse import match_one
 
 # from os.path import dirname, join
 from fuzzywuzzy import fuzz
@@ -26,6 +27,8 @@ import fhem as python_fhem
 
 __author__ = 'domcross'
 
+REQUIRED_RATIO_FOR_BONUS = 89
+BONUS = 25
 
 class FhemSkill(FallbackSkill):
 
@@ -69,7 +72,7 @@ class FhemSkill(FallbackSkill):
             self.fhem.connect()
             LOG.debug("connect: {}".format(self.fhem.connected()))
             if self.fhem.connected():
-                self.room = self.settings.get('room', 'Homebridge')
+                self.allowed_devices_room = self.settings.get('room', 'Homebridge')
                 self.ignore_rooms = self.settings.get('ignore_rooms', '')
 
                 # Check if natural language control is loaded at fhem-server
@@ -109,6 +112,10 @@ class FhemSkill(FallbackSkill):
         # Check and then monitor for credential changes
         self.settings.set_changed_callback(self.on_websettings_changed)
 
+        # registering entities, is that actually necessary?
+        self.register_entity_file('action.entity')
+        self.register_entity_file('room.entity')
+
     def on_websettings_changed(self):
         # Only attempt to load if the host is set
         LOG.debug("websettings changed")
@@ -118,8 +125,7 @@ class FhemSkill(FallbackSkill):
             except Exception:
                 pass
 
-    @intent_handler(AdaptIntent().require("SwitchActionKeyword")
-                    .optionally("Action").require("Device"))
+    @intent_file_handler('switch.intent')
     def handle_switch_intent(self, message):
         self._setup()
         if self.fhem is None:
@@ -127,18 +133,27 @@ class FhemSkill(FallbackSkill):
             return
         LOG.debug("Starting Switch Intent")
         LOG.debug("message.data {}".format(message.data))
-        device = message.data["Device"]
-        if message.data["Action"]:
-            action = message.data["Action"]
+
+        device = message.data.get("device")
+        if message.data.get("action"):
+            action = message.data.get("action")
         else:
-            action = ""
+            # when no action is given toggle the device
+            action = "toggle"
+        if message.data.get("room"):
+            room = message.data.get("room")
+        else:
+            # if no room is given use device location
+            room = self.device_location
         allowed_types = '(light|switch|outlet)'
         LOG.debug("Device: %s" % device)
         LOG.debug("Action: %s" % action)
+        LOG.debug("Room: %s" % room)
+
         # TODO if entity is 'all', 'any' or 'every' turn on
         # every single entity not the whole group
         try:
-            fhem_device = self._find_device(device, allowed_types)
+            fhem_device = self._find_device(device, allowed_types, room)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -150,11 +165,13 @@ class FhemSkill(FallbackSkill):
 
         # keep original actioname for speak_dialog
         # when device already is in desiredstate
-        original_action = action
-        if (action in self.translate('on_keywords').split(',')):
-                action = 'on'
-        elif (action in self.translate('off_keywords').split(',')):
-            action = 'off'
+        if action != 'toggle':
+            original_action = action
+        else:
+            original_action = self.translate('toggle_keyword')
+        action_values = self.translate_namedvalues('actions.value')
+        if action in action_values.keys():
+            action = action_values[action]
         LOG.debug("- action: %s" % action)
         LOG.debug("- state: %s" % fhem_device['state']['Value'])
         if fhem_device['state']['Value'] == action:
@@ -162,7 +179,7 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.device.already', data={
                 'dev_name': fhem_device['dev_name'],
                 'action': original_action})
-        elif (action in self.translate('toggle_keywords').split(',')):
+        elif action == 'toggle':
             if(fhem_device['state']['Value'] == 'off'):
                 action = 'on'
             else:
@@ -392,16 +409,17 @@ class FhemSkill(FallbackSkill):
         sensor_state = ""
         sensor_unit = ""
 
+        sensor_values = self.translate_namedvalues('sensor.value')
         tokens = fhem_device['state']['Value'].split(" ")
         for t in range(0, len(tokens)):
             tok = tokens[t].lower().replace(":", "")
             # LOG.debug("tok = %s" % tok)
             if tok in ['t', 'temp', 'temperatur', 'temperature']:
-                sensor_state += self.__translate("sensor.temperature")
+                sensor_state += sensor_values["temperature"]
             elif tok in ['h', 'hum', 'humidity']:
-                sensor_state += self.__translate("sensor.humidity")
+                sensor_state += sensor_values["humidity"]
             elif tok in ['p', 'pamb', 'press', 'pressure']:
-                sensor_state += self.__translate("sensor.pressure")
+                sensor_state += sensor_values["pressure"]
             else:
                 sensor_state += tokens[t]
             sensor_state += " "
@@ -462,7 +480,8 @@ class FhemSkill(FallbackSkill):
         LOG.debug("wanted: %s" % wanted)
 
         try:
-            roommates = self.fhem.get(room=self.room, device_type='ROOMMATE')
+            roommates = self.fhem.get(room=self.allowed_devices_room,
+                                      device_type='ROOMMATE')
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -485,8 +504,9 @@ class FhemSkill(FallbackSkill):
                         bestName = realname
                         bestRatio = ratio
 
+        presence_values = self.translate_namedvalues('presence.value')
         if presence:
-            location = self.__translate('presence.%s' % presence)
+            location = presence_values[presence]
             self.speak_dialog('fhem.presence.found',
                               data={'wanted': bestName,
                                     'location': location})
@@ -501,7 +521,15 @@ class FhemSkill(FallbackSkill):
             return
         LOG.debug("Starting Thermostat Intent")
 
-        device = message.data["device"]
+        if message.data.get("device"):
+            device = message.data.get("device")
+        else:
+            device = "thermostat"
+        if message.data.get("room"):
+            room = message.data.get("room")
+        else:
+            room = self.device_location
+
         LOG.debug("Device: %s" % device)
         LOG.debug("This is the message data: %s" % message.data)
         temperature = message.data["temp"]
@@ -509,7 +537,7 @@ class FhemSkill(FallbackSkill):
 
         allowed_types = 'thermostat'
         try:
-            fhem_device = self._find_device(device, allowed_types)
+            fhem_device = self._find_device(device, allowed_types, room)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return
@@ -549,10 +577,10 @@ class FhemSkill(FallbackSkill):
                 minValue = 6.0
                 maxValue = 30.0
             elif td['Internals']['TYPE'] == 'CUL_HM':
-                # LOG.debug("HM")
+                LOG.debug("HM")
                 # test for Clima-Subdevice
                 if 'channel_04' in td['Internals']:
-                    target_entity = td['Internals']['channel_04']
+                    target_device = td['Internals']['channel_04']
         elif 'desiredTemperature' in td['Readings']:
             # LOG.debug("MAX")
             cmd = "desiredTemperature"
@@ -694,12 +722,38 @@ class FhemSkill(FallbackSkill):
         self.speak(answer, expect_response=asked_question)
         return True
 
-    def _find_device(self, device, allowed_types):
-        LOG.debug("device: {} allowed_types: {}".format(device, allowed_types))
-        device_candidates = self.fhem.get(room=self.room,
-                                          filters={'genericDeviceType':
-                                                   allowed_types})
-        LOG.debug(device_candidates)
+    def _find_device(self, device, allowed_types, room=""):
+        LOG.debug("device: {} allowed_types: {} room: {}".format(device,
+                                                                 allowed_types,
+                                                                 room))
+        filter_dict = {'genericDeviceType': allowed_types}
+
+        # new search strategy: first check if there is a fit in specified room
+        if room:
+            room = self._normalize(self._clean_common_words(room))
+            # LOG.debug("normalized room: {}".format(room))
+            filter_dict['room'] = room
+        device_candidates = self.fhem.get(room=self.allowed_devices_room,
+                                          filters=filter_dict)
+
+        if len(device_candidates) == 1:
+            # TODO can we do anything if len(...) > 1 ?
+            LOG.debug("perfect match")
+            # we have a perfect match:
+            # there is only one device of the allowed type in the room
+            dc = device_candidates[0]
+            best_device = {"id": dc['Name'],
+                           "dev_name": self._get_aliasname(dc),
+                           "state": dc['Readings']['state'],
+                           "best_score": 999}
+            return best_device
+
+        # try again without filter on room
+        del filter_dict['room']
+        device_candidates = self.fhem.get(room=self.allowed_devices_room,
+                                          filters=filter_dict)
+        # LOG.debug(device_candidates)
+
         # require a score above 50%
         best_score = 50
         best_device = None
@@ -710,33 +764,17 @@ class FhemSkill(FallbackSkill):
                 norm_name = self._normalize(dc['Name'])
                 norm_name_list = norm_name.split(" ")
                 # LOG.debug("norm_name_list = %s" % norm_name_list)
-                # add room to name
-                room = ""
-                LOG.debug(self.ignore_rooms)
-                ignore = [x.lower() for x in self.ignore_rooms.split(",")]
-                LOG.debug("ignore = %s" % ignore)
-                if 'room' in dc['Attributes']:
-                    rooms = [x.lower() for x in
-                             dc['Attributes']['room'].split(",")]
-                    rooms.remove(self.room.lower())
-                    # LOG.debug("rooms = %s" % rooms)
-                    for r in rooms:
-                        if (r not in ignore) and (r not in norm_name_list):
-                            # LOG.debug("adding r = %s" % r)
-                            room += (" " + r)
 
-                norm_name += self._normalize(room)
+                dev_room = self._get_normalized_room_list(dc)
+                for r in dev_room:
+                    if (r not in norm_name_list):
+                        norm_name += (" " + self._normalize(r))
+
+                # LOG.debug("dev_room: {}".format(dev_room))
                 # LOG.debug("norm_name = %s" % norm_name)
 
-                if 'alias' in dc['Attributes']:
-                    alias = dc['Attributes']['alias']
-                else:
-                    alias = dc['Name']
+                alias = self._get_aliasname(dc)
                 norm_alias = self._normalize(alias)
-
-                # LOG.debug("norm_name_list = %s" % norm_name_list)
-                # LOG.debug("types = %s" % types)
-                # LOG.debug("list-types: %s" % any(n in norm_name_list for n in types))
 
                 try:
                     if (norm_name != norm_alias) and ('alias' in
@@ -744,6 +782,10 @@ class FhemSkill(FallbackSkill):
                         score = fuzz.token_sort_ratio(
                             device,
                             norm_alias)
+                        # add bonus if room name match
+                        if room and dev_room:
+                            score += self._get_bonus_for_room(room,
+                                                              dev_room[0])
                         if score > best_score:
                             best_score = score
                             best_device = {
@@ -752,26 +794,76 @@ class FhemSkill(FallbackSkill):
                                 "state": dc['Readings']['state'],
                                 "best_score": best_score}
 
-                        score = fuzz.token_sort_ratio(
-                            device,
-                            norm_name)
-                        # LOG.debug("%s %s" % (norm_name, score))
-                        if score > best_score:
-                            best_score = score
-                            best_device = {
-                                "id": dc['Name'],
-                                "dev_name": alias,
-                                "state": dc['Readings']['state'],
-                                "best_score": best_score}
+                    score = fuzz.token_sort_ratio(device, norm_name)
+                    # add bonus if room name match
+                    if room and dev_room:
+                        score += self._get_bonus_for_room(room, dev_room[0])
+                    # LOG.debug("%s %s" % (norm_name, score))
+                    if score > best_score:
+                        best_score = score
+                        best_device = {
+                            "id": dc['Name'],
+                            "dev_name": alias,
+                            "state": dc['Readings']['state'],
+                            "best_score": best_score}
+
                 except KeyError:
                     pass  # print("KeyError")
             LOG.debug("best device = %s" % best_device)
             return best_device
 
+    def _get_bonus_for_room(self, room, dev_room):
+        if fuzz.ratio(room, dev_room) > REQUIRED_RATIO_FOR_BONUS:
+            LOG.debug("bonus! {} {}".format(room, dev_room))
+            return BONUS
+        else:
+            return 0
+
+    def _get_aliasname(self, device):
+        if 'alias' in device['Attributes']:
+            alias = device['Attributes']['alias']
+        else:
+            alias = device['Name']
+        return alias
+
+    def _get_normalized_room_list(self, dev):
+        # add device room to name
+        dev_room = []
+        # LOG.debug(self.ignore_rooms)
+        ignore = [x.lower() for x in self.ignore_rooms.split(",")]
+        # LOG.debug("ignore = %s" % ignore)
+        if 'room' in dev['Attributes']:
+            rooms = [x.lower() for x in dev['Attributes']['room'].split(",")]
+            rooms.remove(self.allowed_devices_room.lower())
+            # LOG.debug("rooms = %s" % rooms)
+            for r in rooms:
+                # LOG.debug("r = %s" % r)
+                if (r not in ignore):
+                    # LOG.debug("adding r = %s" % r)
+                    dev_room.append(r)
+        return dev_room
+
     def _normalize(self, name):
         s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
         s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
         return s2.replace("_", " ").replace("-", " ").replace(".", " ")
+
+    def _clean_common_words(self, text):
+        txt = text.split(" ")
+        common_words = self.translate_list("common.words")
+        # LOG.debug("common_words {}".format(common_words))
+        for i in range(0, len(txt)):
+            if txt[i] in common_words:
+                txt[i] = ""
+        res = ""
+        for t in txt:
+            res += "{} ".format(t)
+        prev_len = len(res) + 1
+        while prev_len > len(res):
+            res.replace("  ", " ")
+            prev_len = len(res)
+        # LOG.debug("out {}".format(res))
+        return res.strip()
 
     def shutdown(self):
         self.remove_fallback(self.handle_fallback)

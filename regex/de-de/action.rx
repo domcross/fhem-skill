@@ -1,5 +1,0 @@
-(?P<Action>hell|heller|runter|dunkler) (?P<Device>.*)
-(?P<Device>.*) (?P<Action>hell|heller|runter|dunkler)
-(schalte|mache) (?P<Device>.*) (?P<Action>hell|heller|runter|dunkler)
-(schalte|knippse) (?P<Action>an|ein|aus|um) (?P<Device>.*)
-(schalte|knippse|mache) (?P<Device>.*) (?P<Action>an|ein|aus|um)

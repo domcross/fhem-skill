@@ -1,0 +1,3 @@
+(schalte|knipse|mache) {device}
+(schalte|knipse|mache) {device} {action}
+(schalte|knipse|mache) {device} {room} {action}
