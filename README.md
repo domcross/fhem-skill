@@ -21,8 +21,8 @@ Fill this out with your appropriate Fhem information and hit save.
 ![Screenshot](screenshot.JPG?raw=true)
 
 ## Usage
-Say something like "Hey Mycroft, turn on living room lights". Currently available commands are "turn (on|off) *device*" and "status *device*". 
-Matching to Fhem entity names is done by scanning the Fhem API and looking for the closest matching device ID or alias name. The matching is fuzzy (thanks to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft didn't quite get what you said.  
+Say something like "Hey Mycroft, turn on living room lights". Currently available commands are "turn (on|off) *device*" and "status *device*".
+Matching to Fhem entity names is done by scanning the Fhem API and looking for the closest matching device ID or alias name. The matching is fuzzy (thanks to the `fuzzywuzzy` module) so it should find the right entity most of the time, even if Mycroft didn't quite get what you said.
 
 ## Supported Phrases/Entities
 Currently the phrases are:
@@ -33,11 +33,10 @@ Currently the phrases are:
 * Hey Mycroft, where is *name of person*
 
 ## TODO
- * Script intents processing
- * New intent for opening/closing cover entities
- * New intent for locking/unlocking lock entities (with added security?)
- * New intent to handle multimedia/kodi
- 
+ * Optimize retrieval of devices
+ * New intents (light scenes and dimmer control, shutters and door locks, etc.)
+ * ...?
+
 ## Contributing
 All contributions welcome:
  * Fork

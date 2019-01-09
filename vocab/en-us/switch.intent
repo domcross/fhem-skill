@@ -1,3 +1,3 @@
 (turn|switch) {device}
-(turn|switch) {device} {action}
-(turn|switch) {device} {room} {action}
+(turn|switch) {action} {device}
+(turn|switch) {action} {device} {room}
