@@ -1,4 +1,5 @@
-
-set the {entity} to {temp} degrees
-set the {entity} temperature to {temp} degrees
-change the {entity} temperature to {temp} degrees
+(set|change) {device} to {temp} degrees
+(set|change) {device} {room} to {temp} degrees
+(set|change) {device} temperature to {temp} degrees
+(set|change) {room} temperature to {temp} degrees
+(set|change) temperature {room} to {temp} degrees

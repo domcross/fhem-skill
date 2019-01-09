@@ -7,6 +7,13 @@
               "name": "Login",
               "fields": [
                   {
+                        "name": "protocol",
+                        "type": "select",
+                        "label": "Protocol:",
+                        "options": "HTTP (default)|http;HTTPS (experimental)|https;TELNET (experimental)|telnet",
+                        "value": "http"
+                  },
+                  {
                       "name": "host",
                       "type": "text",
                       "label": "Host adress",
@@ -64,6 +71,12 @@
           {
               "name": "Options",
               "fields": [
+                  {
+                      "name": "device_location",
+                      "type": "checkbox",
+                      "label": "Use Mycroft device description as location",
+                      "value": "false"
+                  },
                   {
                       "name": "ssl",
                       "type": "checkbox",

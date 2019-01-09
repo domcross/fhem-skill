@@ -1,1 +1,1 @@
-(stelle|setze|ändere) (?P<Entity>.*) (thermostat|temperatur) auf (?P<temp>[0-9]*)
+(stelle|setze|ändere) (?P<Device>.*) (thermostat|temperatur) auf (?P<temp>[0-9]*)
