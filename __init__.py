@@ -383,19 +383,23 @@ class FhemSkill(FallbackSkill):
                               data=fhem_entity)
             self.fhem.execute_service("fhem", "turn_on", data=fhem_data)
 
-    @intent_handler(AdaptIntent().require("SensorStatusKeyword")
-                    .require("Device"))
+    @intent_file_handler('sensor.intent')
     def handle_sensor_intent(self, message):
         self._setup()
         if self.fhem is None:
             self.speak_dialog('fhem.error.setup')
             return
 
-        device = message.data["Device"]
+        device = message.data.get("device")
+        if message.data.get("room"):
+            room = message.data.get("room")
+        else:
+            # if no room is given use device location
+            room = self.device_location
         allowed_types = '(sensor|thermometer)'
         LOG.debug("device: %s" % device)
         try:
-            fhem_device = self._find_device(device, allowed_types)
+            fhem_device = self._find_device(device, allowed_types, room)
         except ConnectionError:
             self.speak_dialog('fhem.error.offline')
             return

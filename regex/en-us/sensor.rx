@@ -1,4 +1,0 @@
-((in )?(what|which) (status|state|value) (is|has) (?P<Device>.*))
-((how|what) is (the )?(current )?((status|state|value|sensor) )?(?P<Device>.*))
-(tell me ((the|our) )?(current )?((status|state|value|sensor) )?(?P<Device>.*))
-#(read (out )?)?((status|state|value|sensor) )?(?P<Device>.*)
