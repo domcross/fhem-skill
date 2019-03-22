@@ -17,8 +17,11 @@
 from mycroft import intent_handler, AdaptIntent, intent_file_handler
 from mycroft.api import DeviceApi
 from mycroft.skills.core import FallbackSkill
+from mycroft.skills.common_iot_skill import CommonIoTSkill
+from mycroft.skills.common_iot_skill import IoTRequest, Action,\
+    Attribute, Thing
 from mycroft.util.log import LOG
-from mycroft.util.parse import match_one
+# from mycroft.util.parse import match_one
 
 # from os.path import dirname, join
 from fuzzywuzzy import fuzz
@@ -30,7 +33,8 @@ __author__ = 'domcross'
 REQUIRED_RATIO_FOR_BONUS = 89
 BONUS = 25
 
-class FhemSkill(FallbackSkill):
+
+class FhemSkill(FallbackSkill, CommonIoTSkill):
 
     def __init__(self):
         super(FhemSkill, self).__init__(name="FhemSkill")
@@ -115,6 +119,7 @@ class FhemSkill(FallbackSkill):
         # registering entities, is that actually necessary?
         self.register_entity_file('action.entity')
         self.register_entity_file('room.entity')
+        self.register_entities_and_scenes()
 
     def on_websettings_changed(self):
         # Only attempt to load if the host is set
@@ -125,7 +130,57 @@ class FhemSkill(FallbackSkill):
             except Exception:
                 pass
 
-    @intent_file_handler('switch.intent')
+    # overrides(CommonIoTSkill)
+    def can_handle(self, request: IoTRequest):
+        LOG.debug("IoT request: {}".format(request))
+        if not request.thing == Thing.LIGHT:
+            LOG.debug("no: not a light thing")
+            return False, None
+        if request.entity not in self.get_entities():
+            LOG.debug("no: not in entities")
+            return False, None
+        #if request.scene and request.scene not in self._intensities:
+        #    return False, None
+        #if request.attribute and not request.attribute == Attribute.BRIGHTNESS:
+        #    return False, None
+
+        if request.action in (Action.ON, Action.OFF):
+            LOG.debug("yes: ON/OFF action")
+            return True, None
+        # elif request.action in (Action.INCREASE, Action.DECREASE):
+        #    return True, None
+
+        return False, None
+
+    # overrides(CommonIoTSkill)
+    def run_request(self, request: IoTRequest, callback_data: dict):
+        LOG.debug("request: {}, cbd: {}".format(request, callback_data))
+        if request.action == Action.ON:
+            action = "on"
+        elif request.action == Action.OFF:
+            action = "off"
+        elif request.action == Action.TOGGLE:
+            action = "toggle"
+        self.fhem.send_cmd("set {} {}".format(request.entity, action))
+
+    # @overrides(CommonIoTSkill)
+    def get_entities(self):
+        allowed_types = '(light|switch|outlet)'
+        filter_dict = {'genericDeviceType': allowed_types}
+        devices = self.fhem.get(room=self.allowed_devices_room,
+                               filters=filter_dict)
+        #LOG.debug("devices: {}".format(devices))
+        ret = []
+        for dev in devices:
+            ret.append(dev["Name"])
+        LOG.debug("ret: {}".format(ret))
+        return ret
+
+    # @overrides(CommonIoTSkill)
+    def get_scenes(self):
+        return []
+
+    # @intent_file_handler('switch.intent')
     def handle_switch_intent(self, message):
         self._setup()
         if self.fhem is None:
