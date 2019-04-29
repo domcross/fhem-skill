@@ -1,6 +1,6 @@
 
 (stelle|setze|ändere) {device} auf {temp} grad
 (stelle|setze|ändere) {device} {room} auf {temp} grad
-(stelle|setze|ändere) {device} temperatur auf {temp} grad
-(stelle|setze|ändere) {room} temperatur auf {temp} grad
-(stelle|setze|ändere) temperatur {room} auf {temp} grad
+(stelle|setze|ändere) (die|) {device} temperatur auf {temp} grad
+(stelle|setze|ändere) (die|) {room} temperatur auf {temp} grad
+(stelle|setze|ändere) (die|) temperatur (im|in|) {room} auf {temp} grad

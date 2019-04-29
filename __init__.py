@@ -753,7 +753,9 @@ class FhemSkill(FallbackSkill):
             return best_device
 
         # try again without filter on room
-        del filter_dict['room']
+        if 'room' in filter_dict.keys():
+            LOG.debug("try again without filter on room")
+            del filter_dict['room']
         device_candidates = self.fhem.get(room=self.allowed_devices_room,
                                           filters=filter_dict)
         # LOG.debug(device_candidates)
