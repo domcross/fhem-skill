@@ -16,7 +16,7 @@
                   {
                       "name": "host",
                       "type": "text",
-                      "label": "Host adress",
+                      "label": "Host address",
                       "value": ""
                   },
                   {
@@ -33,7 +33,7 @@
                   },
                   {
                       "name": "portnum",
-                      "type": "Number",
+                      "type": "number",
                       "label": "Port number",
                       "value": "8083"
                   }
@@ -64,7 +64,7 @@
                       "name": "ignore_rooms",
                       "type": "text",
                       "label": "FHEM-Rooms to be ignored (when trying to guess a location)",
-                      "value": "Homebrigde,IT,CUL_HM,ESPEasy,_LOG"
+                      "value": "Homebrigde,Unsorted,Everything,_LOG"
                   }
               ]
           },
