@@ -1,0 +1,5 @@
+{open} {device}
+{close} {device}
+{open} {device} {room}
+{close} {device} {room}
+(stelle|fahre|positioniere) {device} auf {percent} (prozent|%|)

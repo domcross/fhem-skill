@@ -1,4 +1,4 @@
-# Copyright 2018, domcross
+# Copyright 2018-2019, domcross
 # Github https://github.com/domcross
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@ from mycroft import intent_handler, AdaptIntent, intent_file_handler
 from mycroft.api import DeviceApi
 from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
-from mycroft.util.parse import match_one
+#from mycroft.util.parse import match_one
 
 # from os.path import dirname, join
 from fuzzywuzzy import fuzz
@@ -30,6 +30,7 @@ __author__ = 'domcross'
 REQUIRED_RATIO_FOR_BONUS = 89
 BONUS = 25
 
+
 class FhemSkill(FallbackSkill):
 
     def __init__(self):
@@ -37,11 +38,11 @@ class FhemSkill(FallbackSkill):
         LOG.info("__init__")
         self.fhem = None
         self.enable_fallback = False
+        self.device_location = ""
 
     def _setup(self, force=False):
         # when description of home.mycroft.ai > Devices > [this mycroft device]
         # is filled, use this the name of the room where mycroft is located
-        self.device_location = ""
         if self.settings.get('device_location', False):
             dev = DeviceApi()
             info = dev.get()
@@ -115,6 +116,9 @@ class FhemSkill(FallbackSkill):
         # registering entities, is that actually necessary?
         self.register_entity_file('action.entity')
         self.register_entity_file('room.entity')
+        self.register_entity_file('open.entity')
+        self.register_entity_file('close.entity')
+        #self.register_entity_file('blind.entity')
 
     def on_websettings_changed(self):
         # Only attempt to load if the host is set
@@ -124,6 +128,66 @@ class FhemSkill(FallbackSkill):
                 self._setup(force=True)
             except Exception:
                 pass
+
+    @intent_file_handler('blind.intent')
+    def handle_blind_intent(self, message):
+        self._setup()
+        if self.fhem is None:
+            self.speak_dialog('fhem.error.setup')
+            return
+        LOG.info("Starting Blind Intent")
+        LOG.info("message.data {}".format(message.data))
+
+        device = message.data.get("device")
+        action = ""
+        percent = None
+        if message.data.get("open"):
+            action = "open"
+            target_pct = 0
+        elif message.data.get("close"):
+            action = "closed" # sic!
+            target_pct = 100
+        elif message.data.get("percent"):
+            action = "pct"
+            percent = message.data.get("percent")
+            if percent.isdigit():
+                target_pct = int(percent)
+        else:
+            LOG.info("no action for blind intent found!")
+            return False
+        if message.data.get("room"):
+            room = message.data.get("room")
+        else:
+            # if no room is given use device location
+            room = self.device_location
+        allowed_types = 'blind'
+        LOG.info("Device: %s" % device)
+        LOG.info("Action: %s" % action)
+        LOG.info("Room: %s" % room)
+        if percent:
+            LOG.info("Percent: %s" % percent)
+        try:
+            fhem_device = self._find_device(device, allowed_types, room)
+        except ConnectionError:
+            self.speak_dialog('fhem.error.offline')
+            return
+        if fhem_device is None:
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": device})
+            return
+        LOG.info("Entity State: %s" % fhem_device['state'])
+
+        open_pct = 0
+        closed_pct = 100
+
+        blind = self.fhem.get_device(fhem_device['id'])[0]
+        if blind['Internals']['TYPE'] == 'ROLLO':
+            if action == "pct":
+                self.fhem.send_cmd("set {} pct {}".format(fhem_device['id'], target_pct))
+            else:
+                self.fhem.send_cmd("set {} {}".format(fhem_device['id'], action))
+        else:
+            self.speak_dialog('fhem.error.notsupported')
+            return
 
     @intent_file_handler('switch.intent')
     def handle_switch_intent(self, message):
@@ -499,14 +563,14 @@ class FhemSkill(FallbackSkill):
 
         for rm in roommates:
             if 'rr_realname' in rm['Attributes'].keys():
-                    realname = rm['Attributes'][rm['Attributes']['rr_realname']]
-                    LOG.debug("realname: %s" % realname)
-                    ratio = fuzz.ratio(wanted.lower(), realname.lower())
-                    LOG.debug("ratio: %s" % ratio)
-                    if ratio > bestRatio:
-                        presence = rm['Readings']['presence']['Value']
-                        bestName = realname
-                        bestRatio = ratio
+                realname = rm['Attributes'][rm['Attributes']['rr_realname']]
+                LOG.debug("realname: %s" % realname)
+                ratio = fuzz.ratio(wanted.lower(), realname.lower())
+                LOG.debug("ratio: %s" % ratio)
+                if ratio > bestRatio:
+                    presence = rm['Readings']['presence']['Value']
+                    bestName = realname
+                    bestRatio = ratio
 
         presence_values = self.translate_namedvalues('presence.value')
         if presence:
@@ -608,7 +672,7 @@ class FhemSkill(FallbackSkill):
                             t2 = t.split(":")
                             cmd = t2[0]
                             if t2[1] != '':
-                                target_entity = t2[1]
+                                target_device = t2[1]
                         elif t.startswith("minValue"):
                             minValue = float(t.split("=")[1])
                         elif t.startswith("maxValue"):

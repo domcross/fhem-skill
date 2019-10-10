@@ -39,6 +39,7 @@ Currently the phrases are:
 * Hey Mycroft, status of weather station (for a device named "weather station")
 * Hey Mycroft, set thermostat in the livingroom to 20 degrees
 * Hey Mycroft, where is *name of person*
+* Hey Mycroft, open shades in the bedroom
 
 ## TODO
  * Optimize retrieval of devices

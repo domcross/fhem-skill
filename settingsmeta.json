@@ -1,6 +1,4 @@
 {
-  "identifier": "FhemSkill",
-  "name": "FHEM home automation",
   "skillMetadata": {
       "sections": [
           {
