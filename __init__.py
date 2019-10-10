@@ -143,16 +143,19 @@ class FhemSkill(FallbackSkill):
         percent = None
         if message.data.get("open"):
             action = "open"
+            speak_action = message.data.get("open")
             target_pct = 0
         elif message.data.get("close"):
             action = "closed" # sic!
+            speak_action = message.data.get("close")
             target_pct = 100
         elif message.data.get("percent"):
-            action = "pct"
             percent = message.data.get("percent")
             if percent.isdigit():
+                action = "pct"
                 target_pct = int(percent)
-        else:
+
+        if not action:
             LOG.info("no action for blind intent found!")
             return False
         if message.data.get("room"):
@@ -182,9 +185,17 @@ class FhemSkill(FallbackSkill):
         blind = self.fhem.get_device(fhem_device['id'])[0]
         if blind['Internals']['TYPE'] == 'ROLLO':
             if action == "pct":
-                self.fhem.send_cmd("set {} pct {}".format(fhem_device['id'], target_pct))
+                self.fhem.send_cmd("set {} pct {}".format(fhem_device['id'],
+                                                          target_pct))
+                self.speak_dialog('fhem.blind.set',
+                                  data={"device": device,
+                                        "percent": target_pct})
             else:
-                self.fhem.send_cmd("set {} {}".format(fhem_device['id'], action))
+                self.fhem.send_cmd("set {} {}".format(fhem_device['id'],
+                                                      action))
+                self.speak_dialog('fhem.blind', data={"device": device,
+                                                      "action": speak_action,
+                                                      "room": room})
         else:
             self.speak_dialog('fhem.error.notsupported')
             return
