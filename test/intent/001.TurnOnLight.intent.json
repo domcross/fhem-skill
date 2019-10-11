@@ -1,4 +1,0 @@
-{
-  "utterance": "turn on kitchen",
-  "expected_dialog": "fhem.device.on"
-}

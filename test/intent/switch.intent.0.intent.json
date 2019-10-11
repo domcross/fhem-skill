@@ -1,0 +1,8 @@
+{
+    "expected_dialog": "fhem.error.setup",
+    "intent": {
+        "action": "on"
+    },
+    "intent_type": "switch.intent",
+    "utterance": "turn on lights"
+}
