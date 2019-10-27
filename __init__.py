@@ -111,7 +111,7 @@ class FhemSkill(FallbackSkill):
         # Needs higher priority than general fallback skills
         self.register_fallback(self.handle_fallback, 2)
         # Check and then monitor for credential changes
-        self.settings.set_changed_callback(self.on_websettings_changed)
+        self.settings_change_callback = self.on_websettings_changed
 
         # registering entities, is that actually necessary?
         self.register_entity_file('action.entity')
@@ -129,7 +129,7 @@ class FhemSkill(FallbackSkill):
             except Exception:
                 pass
 
-    @intent_file_handler('blind.intent')
+    #@intent_file_handler('blind.intent')
     def handle_blind_intent(self, message):
         self._setup()
         if self.fhem is None:
@@ -212,6 +212,7 @@ class FhemSkill(FallbackSkill):
         device = message.data.get("device")
         if message.data.get("action"):
             action = message.data.get("action")
+            self.log.info("action: {}".format(action))
         else:
             # when no action is given toggle the device
             action = "toggle"
