@@ -22,6 +22,10 @@ When using option "Use Mycroft device description as location" don't forget to e
 
 ![Screenshot](device-info.jpg?raw=true)
 
+## FHEM Configuration
+you have to set up the appropriate genericDeviceType under Fhem. you add the following under global userattr:
+'genericDeviceType:thermometer,thermostat,contact,garage,window,lock,security,ignore,switch,outlet,light,blind'
+
 
 ## Usage
 Say something like "Hey Mycroft, turn on the lights in the living room". Currently available commands are "turn (on|off) *device*" and "status *device*".
