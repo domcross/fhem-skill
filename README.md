@@ -24,7 +24,7 @@ When using option "Use Mycroft device description as location" don't forget to e
 
 ## FHEM Configuration
 you have to set up the appropriate genericDeviceType under Fhem. you add the following under global userattr:
-'genericDeviceType:thermometer,thermostat,contact,garage,window,lock,security,ignore,switch,outlet,light,blind'
+`genericDeviceType:thermometer,thermostat,contact,garage,window,lock,security,ignore,switch,outlet,light,blind`
 
 
 ## Usage
