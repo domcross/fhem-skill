@@ -35,7 +35,7 @@ Matching the Fhem device is done in following order:
 * search for closest matching device ID or alias name.
 * prefer devices that are in the desired room
 
-The matching is fuzzy (thanks to the `fuzzywuzzy` module) so it should find the right device most of the time, even if Mycroft didn't quite get what you said.
+The matching is fuzzy (thanks to the `rapidfuzz` module) so it should find the right device most of the time, even if Mycroft didn't quite get what you said.
 Nevertheless this is not perfect and sometime the wrong devices are triggered. Your feedback on this with examples is highly welcomed.
 
 ## Supported Phrases/Entities
