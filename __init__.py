@@ -21,7 +21,7 @@ from mycroft.util.log import LOG
 #from mycroft.util.parse import match_one
 
 # from os.path import dirname, join
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 import re
 import fhem as python_fhem
 
@@ -577,7 +577,8 @@ class FhemSkill(FallbackSkill):
             if 'rr_realname' in rm['Attributes'].keys():
                 realname = rm['Attributes'][rm['Attributes']['rr_realname']]
                 LOG.debug("realname: %s" % realname)
-                ratio = fuzz.ratio(wanted.lower(), realname.lower())
+                ratio = fuzz.ratio(wanted.lower(), realname.lower(),
+                                   score_cutoff=bestRatio)
                 LOG.debug("ratio: %s" % ratio)
                 if ratio > bestRatio:
                     presence = rm['Readings']['presence']['Value']
