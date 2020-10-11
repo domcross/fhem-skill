@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from adapt.intent import IntentBuilder
-from mycroft import intent_handler, AdaptIntent, intent_file_handler
+from adapt.intent import IntentBuilder
+from mycroft import intent_handler, intent_file_handler
 from mycroft.api import DeviceApi
 from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
@@ -275,9 +275,9 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.sorry')
             return
 
-    @intent_handler(AdaptIntent().optionally("LightsKeyword")
+    @intent_handler(IntentBuilder("").optionally("LightsKeyword")
                     .require("SetVerb").require("Device")
-                    .require("BrightnessValue"))
+                    .require("BrightnessValue").build())
     def handle_light_set_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -325,10 +325,10 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.sorry')
             return
 
-    @intent_handler(AdaptIntent().optionally("LightsKeyword")
+    @intent_handler(IntentBuilder("").optionally("LightsKeyword")
                     .one_of("IncreaseVerb", "DecreaseVerb",
                             "LightBrightenVerb", "LightDimVerb")
-                    .require("Device").optionally("BrightnessValue"))
+                    .require("Device").optionally("BrightnessValue").build())
     def handle_light_adjust_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
@@ -416,8 +416,8 @@ class FhemSkill(FallbackSkill):
             self.speak_dialog('fhem.error.sorry')
             return
 
-    @intent_handler(AdaptIntent().require("AutomationActionKeyword")
-                    .require("Entity"))
+    @intent_handler(IntentBuilder("").require("AutomationActionKeyword")
+                    .require("Entity").build())
     def handle_automation_intent(self, message):
         # TODO not supported yet
         self.speak_dialog('fhem.error.notsupported')
