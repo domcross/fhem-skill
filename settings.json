@@ -1,0 +1,1 @@
+{"ssl": false, "room": "Mycroft", "username": "", "fallback_device_name": "talk", "password": "", "device_location": false, "portnum": 8083, "allow_rooms": "Mycroft", "ignore_rooms": "Homebrigde,IT,CUL_HM,ESPEasy,_LOG", "host": "192.168.50.4", "__mycroft_skill_firstrun": false, "protocol": "http", "enable_fallback": true, "verify": false}
