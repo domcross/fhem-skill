@@ -118,6 +118,7 @@ class FhemSkill(FallbackSkill):
         self.register_entity_file('room.entity')
         self.register_entity_file('open.entity')
         self.register_entity_file('close.entity')
+        self.register_entity_file('lock.entity')
         #self.register_entity_file('blind.entity')
 
     def on_websettings_changed(self):
@@ -274,6 +275,83 @@ class FhemSkill(FallbackSkill):
         else:
             self.speak_dialog('fhem.error.sorry')
             return
+
+
+    @intent_file_handler('lock.intent')
+    def handle_lock_intent(self, message):
+        self._setup()
+        if self.fhem is None:
+            self.speak_dialog('fhem.error.setup')
+            return
+        LOG.debug("Starting Lock Intent")
+        LOG.debug("message.data {}".format(message.data))
+
+        device = message.data.get("device")
+        if message.data.get("action"):
+            action = message.data.get("action")
+            self.log.info("action: {}".format(action))
+        else:
+            # when no action is given toggle the device
+            action = "lock"
+        if message.data.get("room"):
+            room = message.data.get("room")
+        else:
+            # if no room is given use device location
+            room = self.device_location
+        allowed_types = '(lock)'
+        LOG.debug("Device: %s" % device)
+        LOG.debug("Action: %s" % action)
+        LOG.debug("Room: %s" % room)
+
+        # TODO if entity is 'all', 'any' or 'every' turn on
+        # every single entity not the whole group
+        try:
+            fhem_device = self._find_device(device, allowed_types, room)
+        except ConnectionError:
+            self.speak_dialog('fhem.error.offline')
+            return
+        if fhem_device is None:
+            self.speak_dialog('fhem.device.unknown', data={"dev_name": device})
+            return
+        LOG.debug("Entity State: %s" % fhem_device['state'])
+        # fhem_data = {'entity_id': fhem_entity['id']}
+
+        # keep original actioname for speak_dialog
+        # when device already is in desiredstate
+        if action != 'toggle':
+            original_action = action
+        else:
+            original_action = self.translate('toggle_keyword')
+        action_values = self.translate_namedvalues('actions.value')
+        if action in action_values.keys():
+            action = action_values[action]
+        LOG.debug("- action: %s" % action)
+        LOG.debug("- state: %s" % fhem_device['state']['Value'])
+        if fhem_device['state']['Value'] == action:
+            LOG.debug("Entity in requested state")
+            self.speak_dialog('fhem.device.already', data={
+                'dev_name': fhem_device['dev_name'],
+                'action': original_action})
+        elif action == 'toggle':
+            if(fhem_device['state']['Value'] == 'lock'):
+                action = 'lock'
+            else:
+                action = 'unlock'
+            LOG.debug("toggled action: %s" % action)
+            self.fhem.send_cmd("set {} {}".format(fhem_device['id'], action))
+            self.speak_dialog('fhem.lock',
+                              data={'dev_name': fhem_device['dev_name'],
+                                    'action': original_action})
+        elif action in ["lock", "unlock"]:
+            LOG.debug("action: lock/unlock")
+            self.speak_dialog('fhem.lock',
+                              data={'dev_name': fhem_device['dev_name'],
+                                    'action': original_action})
+            self.fhem.send_cmd("set {} {}".format(fhem_device['id'], action))
+        else:
+            self.speak_dialog('fhem.error.sorry')
+            return
+
 
     @intent_handler(IntentBuilder("").optionally("LightsKeyword")
                     .require("SetVerb").require("Device")
