@@ -1,0 +1,4 @@
+{lock} {device}
+{unlock} {device}
+{lock} {device} {room}
+{unlock} {device} {room}
